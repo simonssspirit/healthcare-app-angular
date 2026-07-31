@@ -1,3 +1,5 @@
+export type AlertStatus = 'Open' | 'In Progress' | 'Resolved';
+
 export interface DailyAlert {
   id: number;
   title: string;
@@ -11,6 +13,7 @@ export interface DailyAlert {
   details: string;
   recommendations: string[];
   suggestedAction: string;
+  status: AlertStatus;
 }
 
 export interface HomePatient {
@@ -45,6 +48,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider antibiotic treatment if infection is suspected',
     ],
     suggestedAction: 'Order inflammatory markers panel and review for infection signs immediately',
+    status: 'Open',
   },
   {
     id: 2,
@@ -66,6 +70,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Advise lifestyle modifications (diet, exercise, stress management)',
     ],
     suggestedAction: 'Review antihypertensive medication dosage and order ECG for cardiac assessment',
+    status: 'Open',
   },
   {
     id: 3,
@@ -87,6 +92,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Schedule follow-up in 2 weeks to monitor glucose levels',
     ],
     suggestedAction: 'Schedule HbA1c test and diabetes education consultation within one week',
+    status: 'Open',
   },
   {
     id: 4,
@@ -108,6 +114,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Recheck lipid panel in 6-8 weeks after treatment initiation',
     ],
     suggestedAction: 'Discuss statin therapy options and refer to dietitian for lifestyle counseling',
+    status: 'Open',
   },
   {
     id: 5,
@@ -128,6 +135,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Schedule transfusion evaluation if levels drop below 8 g/dL',
     ],
     suggestedAction: 'Order iron studies and complete blood count; assess for bleeding source urgently',
+    status: 'Open',
   },
   {
     id: 6,
@@ -148,6 +156,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consult nephrology if levels do not improve within 48 hours',
     ],
     suggestedAction: 'Discontinue nephrotoxic medications immediately and order renal ultrasound',
+    status: 'Open',
   },
   {
     id: 7,
@@ -169,6 +178,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Prepare for possible stress test or angiography',
     ],
     suggestedAction: 'Order troponin levels stat and request urgent cardiology consultation',
+    status: 'Open',
   },
   {
     id: 8,
@@ -189,6 +199,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Advise high-potassium diet (bananas, leafy greens)',
     ],
     suggestedAction: 'Start oral potassium supplementation and recheck electrolytes in 24 hours',
+    status: 'Open',
   },
 ];
 
