@@ -221,12 +221,24 @@
       <!-- Daily Alerts Header -->
       <h3 class="section-subtitle">Daily Alerts</h3>
 
+      <!-- ARIA live region for status change announcements -->
+      <div 
+        aria-live="polite" 
+        aria-atomic="true" 
+        class="sr-only"
+        role="status">
+        {{ statusChangeAnnouncement }}
+      </div>
+
       <!-- Daily Alerts List -->
       <div class="daily-alerts">
         @for (alert of dailyAlerts; track alert.id) {
           <div
             class="alert-item"
-            role="button"
+            [class.status-resolved]="alert.status === 'Resolved'"
+            [class.status-in-progress]="alert.status === 'In Progress'"
+            role="article"
+            [attr.aria-label]="'Alert: ' + alert.title + ', Status: ' + alert.status"
             tabindex="0"
             (click)="openAlertDialog(alert)"
             (keyup.enter)="openAlertDialog(alert)"
@@ -234,7 +246,40 @@
           >
             <div>
               <div class="alert-content">
-                <span class="alert-title">{{ alert.title }}</span>
+                <div class="alert-header">
+                  <span class="alert-title">{{ alert.title }}</span>
+                  <kendo-chip
+                    [themeColor]="getAlertStatusColor(alert.status)"
+                    [label]="alert.status"
+                    size="small"
+                    class="alert-status-chip"
+                    [attr.aria-label]="'Status: ' + alert.status">
+                  </kendo-chip>
+                  <div class="alert-status-controls" (click)="$event.stopPropagation()">
+                    @if (alert.status !== 'Resolved') {
+                      <kendo-splitbutton
+                        [data]="[
+                          { text: 'Mark as Open', status: 'Open' },
+                          { text: 'Mark as In Progress', status: 'In Progress' },
+                          { text: 'Mark as Resolved', status: 'Resolved' }
+                        ]"
+                        [text]="alert.status === 'Open' ? 'Start' : 'Resolve'"
+                        size="small"
+                        (buttonClick)="updateAlertStatus(alert, alert.status === 'Open' ? 'In Progress' : 'Resolved')"
+                        (itemClick)="updateAlertStatus(alert, $event.status)"
+                        [ariaLabel]="'Change status for ' + alert.patient">
+                      </kendo-splitbutton>
+                    } @else {
+                      <button
+                        kendoButton
+                        size="small"
+                        (click)="updateAlertStatus(alert, 'Open')"
+                        [attr.aria-label]="'Reopen alert for ' + alert.patient">
+                        Reopen
+                      </button>
+                    }
+                  </div>
+                </div>
                 <div class="alert-bottom">
                   <span class="alert-time">{{ alert.time }}</span>
                   <span class="alert-link">
@@ -441,6 +486,48 @@
           <div class="info-item">
             <span class="info-label">Patient ID:</span>
             <span class="info-value">{{ selectedAlert.patientId }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert Status Section -->
+      <div class="dialog-status-section">
+        <h3 class="field-label">Status</h3>
+        <div class="status-control-row">
+          <kendo-chip
+            [themeColor]="getAlertStatusColor(selectedAlert.status)"
+            [svgIcon]="getAlertStatusIcon(selectedAlert.status)"
+            [label]="selectedAlert.status"
+            class="dialog-status-chip">
+          </kendo-chip>
+          
+          <div class="status-actions">
+            @if (selectedAlert.status === 'Open') {
+              <button 
+                kendoButton 
+                (click)="updateSelectedAlertStatus('In Progress')"
+                themeColor="info"
+                aria-label="Mark alert as in progress">
+                Mark In Progress
+              </button>
+            }
+            @if (selectedAlert.status !== 'Resolved') {
+              <button 
+                kendoButton 
+                (click)="updateSelectedAlertStatus('Resolved')"
+                themeColor="success"
+                aria-label="Mark alert as resolved">
+                Mark Resolved
+              </button>
+            }
+            @if (selectedAlert.status === 'Resolved') {
+              <button 
+                kendoButton 
+                (click)="updateSelectedAlertStatus('Open')"
+                aria-label="Reopen this alert">
+                Reopen
+              </button>
+            }
           </div>
         </div>
       </div>
