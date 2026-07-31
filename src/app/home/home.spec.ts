@@ -4,7 +4,7 @@ import { HomeComponent } from './home';
 import { AppointmentsService } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
 import { PATIENTS_DATA } from '../data/patients.data';
-import { HOME_PATIENTS } from '../data/home.data';
+import { HOME_PATIENTS, DailyAlert } from '../data/home.data';
 
 describe('HomeComponent', () => {
   let component: HomeComponent;
@@ -252,6 +252,196 @@ describe('HomeComponent', () => {
         
         expect(note).toContain('[Document your clinical decision and actions here]');
         expect(note).toContain('[Document follow-up plan here]');
+      });
+    });
+  });
+
+  describe('Alert Status Management - Issue #2', () => {
+    let mockAlert: DailyAlert;
+
+    beforeEach(() => {
+      mockAlert = {
+        id: 1,
+        title: 'Test Alert',
+        patient: 'Test Patient',
+        patientId: 'P-104582',
+        time: 'Now',
+        condition: 'Test Condition',
+        value: '100',
+        normalRange: '50-80',
+        priority: 'High' as const,
+        details: 'Test details',
+        recommendations: ['Rec 1'],
+        suggestedAction: 'Test action',
+        status: 'Open' as const,
+      };
+    });
+
+    describe('updateAlertStatus', () => {
+      it('should update alert status from Open to In Progress', () => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        
+        expect(mockAlert.status).toBe('In Progress');
+      });
+
+      it('should update alert status from In Progress to Resolved', () => {
+        mockAlert.status = 'In Progress';
+        
+        component.updateAlertStatus(mockAlert, 'Resolved');
+        
+        expect(mockAlert.status).toBe('Resolved');
+      });
+
+      it('should update alert status from Open directly to Resolved', () => {
+        component.updateAlertStatus(mockAlert, 'Resolved');
+        
+        expect(mockAlert.status).toBe('Resolved');
+      });
+
+      it('should allow reopening a Resolved alert', () => {
+        mockAlert.status = 'Resolved';
+        
+        component.updateAlertStatus(mockAlert, 'Open');
+        
+        expect(mockAlert.status).toBe('Open');
+      });
+
+      it('should trigger accessibility announcement on status change', () => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        
+        expect(component.statusChangeAnnouncement).toContain('Test Patient');
+        expect(component.statusChangeAnnouncement).toContain('Open');
+        expect(component.statusChangeAnnouncement).toContain('In Progress');
+      });
+
+      it('should clear announcement after timeout', (done) => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        
+        expect(component.statusChangeAnnouncement).toBeTruthy();
+        
+        setTimeout(() => {
+          expect(component.statusChangeAnnouncement).toBe('');
+          done();
+        }, 1100);
+      });
+    });
+
+    describe('updateSelectedAlertStatus', () => {
+      it('should update the selected alert status', () => {
+        component.selectedAlert = mockAlert;
+        
+        component.updateSelectedAlertStatus('In Progress');
+        
+        expect(component.selectedAlert.status).toBe('In Progress');
+      });
+
+      it('should handle missing selectedAlert gracefully', () => {
+        spyOn(console, 'warn');
+        component.selectedAlert = null;
+        
+        component.updateSelectedAlertStatus('In Progress');
+        
+        expect(console.warn).toHaveBeenCalled();
+      });
+    });
+
+    describe('getAlertStatusColor', () => {
+      it('should return warning color for Open status', () => {
+        const color = component.getAlertStatusColor('Open');
+        
+        expect(color).toBe('warning');
+      });
+
+      it('should return info color for In Progress status', () => {
+        const color = component.getAlertStatusColor('In Progress');
+        
+        expect(color).toBe('info');
+      });
+
+      it('should return success color for Resolved status', () => {
+        const color = component.getAlertStatusColor('Resolved');
+        
+        expect(color).toBe('success');
+      });
+
+      it('should return base color for unknown status', () => {
+        const color = component.getAlertStatusColor('Unknown' as any);
+        
+        expect(color).toBe('base');
+      });
+    });
+
+    describe('getAlertStatusIcon', () => {
+      it('should return exclamation icon for Open status', () => {
+        const icon = component.getAlertStatusIcon('Open');
+        
+        expect(icon).toBe(component.exclamationCircleIcon);
+      });
+
+      it('should return clock icon for In Progress status', () => {
+        const icon = component.getAlertStatusIcon('In Progress');
+        
+        expect(icon).toBe(component.clockRotateIcon);
+      });
+
+      it('should return check icon for Resolved status', () => {
+        const icon = component.getAlertStatusIcon('Resolved');
+        
+        expect(icon).toBe(component.checkCircleIcon);
+      });
+    });
+
+    describe('Accessibility - ARIA Announcements', () => {
+      let mockAlert: DailyAlert;
+
+      beforeEach(() => {
+        mockAlert = {
+          id: 1,
+          title: 'CRP elevated',
+          patient: 'Olivia Martinez',
+          patientId: 'P-104501',
+          time: 'Now',
+          condition: 'CRP Elevated',
+          value: '12.5 mg/L',
+          normalRange: '0-10 mg/L',
+          priority: 'High' as const,
+          details: 'Test details',
+          recommendations: ['Rec 1'],
+          suggestedAction: 'Test action',
+          status: 'Open' as const,
+        };
+      });
+
+      it('should construct announcement with patient name', () => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        
+        expect(component.statusChangeAnnouncement).toContain('Olivia Martinez');
+      });
+
+      it('should include both previous and new status in announcement', () => {
+        component.updateAlertStatus(mockAlert, 'Resolved');
+        
+        expect(component.statusChangeAnnouncement).toContain('Open');
+        expect(component.statusChangeAnnouncement).toContain('Resolved');
+      });
+
+      it('should form a complete sentence for screen readers', () => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        
+        expect(component.statusChangeAnnouncement).toBe(
+          'Alert for Olivia Martinez status changed from Open to In Progress'
+        );
+      });
+
+      it('should update announcement on subsequent status changes', () => {
+        component.updateAlertStatus(mockAlert, 'In Progress');
+        const firstAnnouncement = component.statusChangeAnnouncement;
+        
+        component.updateAlertStatus(mockAlert, 'Resolved');
+        const secondAnnouncement = component.statusChangeAnnouncement;
+        
+        expect(firstAnnouncement).toContain('Open to In Progress');
+        expect(secondAnnouncement).toContain('In Progress to Resolved');
       });
     });
   });
