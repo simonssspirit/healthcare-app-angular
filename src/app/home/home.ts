@@ -32,10 +32,13 @@ import { KENDO_LAYOUT } from '@progress/kendo-angular-layout';
 import { KENDO_POPUP } from '@progress/kendo-angular-popup';
 import {
   SVGIcon,
+  checkCircleIcon,
   chevronRightIcon,
   clipboardIcon,
   clockIcon,
+  clockRotateIcon,
   commentIcon,
+  exclamationCircleIcon,
   eyeIcon,
   hyperlinkOpenIcon,
   pillsIcon,
@@ -52,6 +55,7 @@ import {
   DailyAlert,
   HomePatient,
   LabTest,
+  AlertStatus,
 } from '../data/home.data';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
@@ -112,6 +116,34 @@ export class HomeComponent implements OnInit, OnDestroy {
       Cancelled: 'error',
     };
     return colorMap[status] ?? 'base';
+  }
+
+  /**
+   * Returns the Kendo UI chip theme color for a given alert status.
+   * @param status - The alert status
+   * @returns ChipThemeColor for visual indication
+   */
+  public getAlertStatusColor(status: AlertStatus): ChipThemeColor {
+    const colorMap: Record<AlertStatus, ChipThemeColor> = {
+      'Open': 'warning',
+      'In Progress': 'info',
+      'Resolved': 'success',
+    };
+    return colorMap[status] ?? 'base';
+  }
+
+  /**
+   * Returns the SVG icon for a given alert status.
+   * @param status - The alert status
+   * @returns SVGIcon for visual indication
+   */
+  public getAlertStatusIcon(status: AlertStatus): SVGIcon {
+    const iconMap: Record<AlertStatus, SVGIcon> = {
+      'Open': this.exclamationCircleIcon,
+      'In Progress': this.clockRotateIcon,
+      'Resolved': this.checkCircleIcon,
+    };
+    return iconMap[status];
   }
 
   public fileDataIcon: SVGIcon = {
@@ -193,6 +225,14 @@ export class HomeComponent implements OnInit, OnDestroy {
   public dailyAlerts: DailyAlert[] = [...DAILY_ALERTS];
 
   public selectedAlert: DailyAlert | null = null;
+
+  // Alert status icons
+  public checkCircleIcon: SVGIcon = checkCircleIcon;
+  public clockRotateIcon: SVGIcon = clockRotateIcon;
+  public exclamationCircleIcon: SVGIcon = exclamationCircleIcon;
+
+  // Status change announcement for accessibility
+  public statusChangeAnnouncement = '';
 
   // Reason for Visit data
   public reasonForVisit = {
@@ -455,6 +495,57 @@ Dr. Carter`;
     console.log('Alert acknowledged:', this.selectedAlert);
     // Here you would typically update the alert status via a service
     this.closeAlertDialog();
+  }
+
+  /**
+   * Updates the status of an alert and triggers accessibility announcement.
+   * @param alert - The alert to update
+   * @param newStatus - The new status to set
+   */
+  public updateAlertStatus(alert: DailyAlert, newStatus: AlertStatus): void {
+    const previousStatus = alert.status;
+    alert.status = newStatus;
+    
+    // Trigger accessibility announcement
+    this.announceStatusChange(alert, previousStatus, newStatus);
+    
+    this.logger.info(
+      `Alert status updated: ${alert.title}`,
+      { alertId: alert.id, previousStatus, newStatus }
+    );
+  }
+
+  /**
+   * Updates the status of the currently selected alert (for use in dialog).
+   * @param newStatus - The new status to set
+   */
+  public updateSelectedAlertStatus(newStatus: AlertStatus): void {
+    if (!this.selectedAlert) {
+      this.logger.warn('No alert selected for status update');
+      return;
+    }
+    this.updateAlertStatus(this.selectedAlert, newStatus);
+  }
+
+  /**
+   * Announces a status change for screen readers via ARIA live region.
+   * The announcement is cleared after a delay to allow repeated announcements.
+   * @param alert - The alert that was updated
+   * @param previousStatus - The previous status
+   * @param newStatus - The new status
+   */
+  private announceStatusChange(
+    alert: DailyAlert, 
+    previousStatus: AlertStatus, 
+    newStatus: AlertStatus
+  ): void {
+    this.statusChangeAnnouncement = 
+      `Alert for ${alert.patient} status changed from ${previousStatus} to ${newStatus}`;
+    
+    // Clear announcement after screen reader has time to read it
+    setTimeout(() => {
+      this.statusChangeAnnouncement = '';
+    }, 1000);
   }
 
   /**
