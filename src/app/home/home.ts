@@ -143,7 +143,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       'In Progress': this.clockRotateIcon,
       'Resolved': this.checkCircleIcon,
     };
-    return iconMap[status];
+    return iconMap[status] ?? this.exclamationCircleIcon;
   }
 
   public fileDataIcon: SVGIcon = {
