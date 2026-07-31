@@ -36,6 +36,7 @@ import {
   clipboardIcon,
   clockIcon,
   commentIcon,
+  eyeIcon,
   hyperlinkOpenIcon,
   pillsIcon,
   plusIcon,
@@ -55,6 +56,7 @@ import {
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
+import { LoggingService } from '../services/logging.service';
 
 @Component({
   selector: 'app-home',
@@ -126,6 +128,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   };
   public commentIcon: SVGIcon = commentIcon;
   public plusIcon: SVGIcon = plusIcon;
+  public eyeIcon: SVGIcon = eyeIcon;
 
   // Next Patient Icons
   public clockIcon: SVGIcon = clockIcon;
@@ -286,6 +289,7 @@ Dr. Carter`;
   private pageHeaderService = inject(PageHeaderService);
   private router = inject(Router);
   private appointmentsService = inject(AppointmentsService);
+  private logger = inject(LoggingService);
 
   constructor() {
     const date = new Date();
@@ -310,6 +314,54 @@ Dr. Carter`;
   ngOnDestroy(): void {
     this.pageHeaderService.title.set('');
     this.pageHeaderService.subtitle.set('');
+  }
+
+  /**
+   * Finds a patient profile by alert patient ID.
+   * Attempts exact match on patientCode, falls back to first patient if not found.
+   * @param alertPatientId - The patient ID from the alert (e.g., "P-105328")
+   * @returns PatientProfile or null if no patients exist
+   */
+  public findPatientByAlertId(alertPatientId: string): PatientProfile | null {
+    // Try exact match on patientCode
+    const patient = PATIENTS_DATA.find(p => p.patientCode === alertPatientId);
+    if (patient) {
+      return patient;
+    }
+    
+    // Fallback: return first patient with warning (demo data mismatch handling)
+    if (PATIENTS_DATA.length > 0) {
+      this.logger.warn(
+        `Patient with code "${alertPatientId}" not found in PATIENTS_DATA. ` +
+        `Using fallback patient "${PATIENTS_DATA[0].name}" for demo purposes.`,
+        { alertPatientId, fallbackPatient: PATIENTS_DATA[0].name }
+      );
+      return PATIENTS_DATA[0];
+    }
+    
+    return null;
+  }
+
+  /**
+   * Finds a HomePatient by alert patient ID for dropdown pre-selection.
+   * Matches on the patientId field in HOME_PATIENTS.
+   * @param alertPatientId - The patient ID from the alert (e.g., "P-104582")
+   * @returns HomePatient or first patient as fallback
+   */
+  public findHomePatientByAlertId(alertPatientId: string): HomePatient {
+    // Try exact match on patientId
+    const homePatient = this.patients.find(p => p.patientId === alertPatientId);
+    if (homePatient) {
+      return homePatient;
+    }
+    
+    // Fallback: return first patient in list
+    this.logger.warn(
+      `Home patient with ID "${alertPatientId}" not found. ` +
+      `Using fallback patient "${this.patients[0]?.name}" for demo purposes.`,
+      { alertPatientId, fallbackPatient: this.patients[0]?.name }
+    );
+    return this.patients[0];
   }
 
   public navigateToSchedule(): void {
@@ -403,6 +455,120 @@ Dr. Carter`;
     console.log('Alert acknowledged:', this.selectedAlert);
     // Here you would typically update the alert status via a service
     this.closeAlertDialog();
+  }
+
+  /**
+   * Handles the "Review" button click from alert dialog.
+   * Closes the dialog and navigates to the patient's profile page.
+   */
+  public reviewAlertPatient(): void {
+    if (!this.selectedAlert) {
+      this.logger.warn('No alert selected for review');
+      return;
+    }
+
+    const patient = this.findPatientByAlertId(this.selectedAlert.patientId);
+    
+    // Close dialog first
+    this.closeAlertDialog();
+    
+    if (patient) {
+      // Navigate to patient profile
+      this.navigateToPatientProfile(patient.id);
+    } else {
+      // Fallback: navigate to patients list
+      this.logger.error(
+        `Could not find patient for alert: ${this.selectedAlert.patientId}`,
+        { alertPatientId: this.selectedAlert.patientId }
+      );
+      this.router.navigate(['/patients']);
+    }
+  }
+
+  /**
+   * Handles the "Add Note" button click from alert dialog.
+   * Closes the alert dialog and opens the clinical note dialog
+   * with patient pre-selected and context pre-populated.
+   */
+  public addNoteFromAlert(): void {
+    if (!this.selectedAlert) {
+      this.logger.warn('No alert selected for adding note');
+      return;
+    }
+
+    // Find matching home patient for dropdown
+    const homePatient = this.findHomePatientByAlertId(this.selectedAlert.patientId);
+    
+    // Store alert context before closing
+    const alertContext = this.generateNoteFromAlert(this.selectedAlert);
+    
+    // Close alert dialog first
+    this.closeAlertDialog();
+    
+    // Pre-populate the clinical note dialog
+    this.selectedPatient = homePatient;
+    this.clinicalNoteText = alertContext;
+    
+    // Open clinical note dialog
+    this.openClinicalNoteDialog();
+  }
+
+  /**
+   * Handles the "Request Test" button click from alert dialog.
+   * Closes the alert dialog and opens the lab test request dialog
+   * with the patient pre-selected.
+   */
+  public requestTestFromAlert(): void {
+    if (!this.selectedAlert) {
+      this.logger.warn('No alert selected for requesting test');
+      return;
+    }
+
+    // Find matching home patient for dropdown
+    const homePatient = this.findHomePatientByAlertId(this.selectedAlert.patientId);
+    
+    // Close alert dialog first
+    this.closeAlertDialog();
+    
+    // Pre-populate the lab test dialog
+    this.labTestPatient = homePatient;
+    
+    // Reset lab test selections (clear any previous selections)
+    this.labTests.forEach(test => test.selected = false);
+    
+    // Open lab test dialog
+    this.openLabTestDialog();
+  }
+
+  /**
+   * Generates pre-populated clinical note text from alert context.
+   * @param alert - The alert to generate note content from
+   * @returns Formatted note text with alert details
+   */
+  private generateNoteFromAlert(alert: DailyAlert): string {
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `Alert Follow-up Note - ${timestamp}
+
+Patient: ${alert.patient}
+Condition: ${alert.condition}
+Value: ${alert.value} (Normal: ${alert.normalRange})
+Priority: ${alert.priority}
+
+Clinical Context:
+${alert.details}
+
+Action Taken:
+[Document your clinical decision and actions here]
+
+Follow-up Plan:
+[Document follow-up plan here]`;
   }
 
   // Reason for Visit dialog methods

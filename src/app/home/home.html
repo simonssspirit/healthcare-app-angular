@@ -487,11 +487,61 @@
           }
         </ul>
       </div>
+
+      <!-- Suggested Next Action -->
+      <div class="suggested-action-section" 
+           [class.priority-high]="selectedAlert.priority === 'High'"
+           [class.priority-medium]="selectedAlert.priority === 'Medium'"
+           role="region"
+           aria-labelledby="suggested-action-heading">
+        <div class="suggested-action-icon" aria-hidden="true">
+          <kendo-svgicon [icon]="sparklesIcon"></kendo-svgicon>
+        </div>
+        <div class="suggested-action-content">
+          <h4 id="suggested-action-heading" class="suggested-action-title">Suggested Next Action</h4>
+          <p class="suggested-action-text">{{ selectedAlert.suggestedAction }}</p>
+        </div>
+      </div>
     </div>
 
-    <kendo-dialog-actions layout="end">
-      <button kendoButton (click)="closeAlertDialog()">Close</button>
-      <button kendoButton themeColor="primary" (click)="acknowledgeAlert()">Acknowledge</button>
+    <kendo-dialog-actions class="alert-dialog-actions">
+      <button 
+        kendoButton 
+        (click)="closeAlertDialog()"
+        aria-label="Close alert dialog">
+        Close
+      </button>
+      <div class="alert-cta-buttons">
+        <button 
+          kendoButton 
+          (click)="addNoteFromAlert()"
+          [svgIcon]="stickyNoteIcon"
+          aria-label="Add clinical note for {{ selectedAlert?.patient }}">
+          Add Note
+        </button>
+        <button 
+          kendoButton 
+          (click)="requestTestFromAlert()"
+          [svgIcon]="fileDataIcon"
+          aria-label="Request lab test for {{ selectedAlert?.patient }}">
+          Request Test
+        </button>
+        <button 
+          kendoButton 
+          themeColor="primary"
+          (click)="reviewAlertPatient()"
+          [svgIcon]="eyeIcon"
+          aria-label="Review patient profile for {{ selectedAlert?.patient }}">
+          Review
+        </button>
+        <button 
+          kendoButton 
+          themeColor="primary" 
+          (click)="acknowledgeAlert()"
+          aria-label="Acknowledge alert for {{ selectedAlert?.patient }}">
+          Acknowledge
+        </button>
+      </div>
     </kendo-dialog-actions>
   </kendo-dialog>
 }

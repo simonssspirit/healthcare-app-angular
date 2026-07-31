@@ -618,6 +618,104 @@
   font-weight: bold;
 }
 
+/* Suggested Next Action Section */
+.suggested-action-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #7dd3fc;
+  border-radius: 12px;
+  border-left: 4px solid #0284c7;
+  margin-top: 8px;
+}
+
+.suggested-action-section.priority-high {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: #fca5a5;
+  border-left-color: #dc2626;
+}
+
+.suggested-action-section.priority-medium {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fcd34d;
+  border-left-color: #d97706;
+}
+
+.suggested-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.suggested-action-icon kendo-svgicon {
+  width: 24px;
+  height: 24px;
+  color: #0284c7;
+}
+
+.suggested-action-section.priority-high .suggested-action-icon kendo-svgicon {
+  color: #dc2626;
+}
+
+.suggested-action-section.priority-medium .suggested-action-icon kendo-svgicon {
+  color: #d97706;
+}
+
+.suggested-action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.suggested-action-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0c4a6e;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.suggested-action-section.priority-high .suggested-action-title {
+  color: #991b1b;
+}
+
+.suggested-action-section.priority-medium .suggested-action-title {
+  color: #92400e;
+}
+
+.suggested-action-text {
+  font-size: 16px;
+  line-height: 150%;
+  color: #1e293b;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Alert Dialog Responsive Styles */
+.alert-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alert-cta-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 /* Floating Action Button & AI Chat */
 .fab-button {
   position: fixed !important;
@@ -852,5 +950,49 @@
 @media (min-width: 1440px) {
   .main-content-wrapper {
     margin-bottom: 40px;
+  }
+}
+
+/* Alert Dialog Responsive Styles for Narrow Screens */
+@media (max-width: 680px) {
+  .alert-dialog-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .alert-dialog-actions > button:first-child {
+    order: 2;
+    width: 100%;
+  }
+
+  .alert-cta-buttons {
+    order: 1;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .alert-cta-buttons button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  /* Stack primary buttons on their own row */
+  .alert-cta-buttons button[themecolor="primary"] {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .alert-cta-buttons button {
+    flex: 1 1 100%;
+  }
+  
+  .suggested-action-section {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .suggested-action-icon {
+    align-self: center;
   }
 }
