@@ -107,4 +107,16 @@ describe('PatientProfileComponent recommendations', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/patients']);
     expect(fixture.nativeElement.querySelector('.recommendation-panel')).toBeNull();
   });
+
+  it('defines a three-column action grid that stacks at the 1000px breakpoint', () => {
+    const styles = [...document.head.querySelectorAll('style')].map((style) => style.textContent);
+    const recommendationStyles = styles.find((style) => style?.includes('.recommendation-actions'));
+
+    expect(recommendationStyles).toMatch(
+      /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/,
+    );
+    expect(recommendationStyles).toMatch(
+      /@media \(max-width:\s*1000px\)[\s\S]*?\.recommendation-actions[^{]*\{\s*grid-template-columns:\s*1fr/,
+    );
+  });
 });

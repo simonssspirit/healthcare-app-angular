@@ -64,6 +64,21 @@ describe('LabTestRequestDialogComponent', () => {
     expect(LAB_TEST_OPTIONS).toEqual(catalogSnapshot);
   });
 
+  it('does not double-toggle a focused checkbox after its Space-key change event', () => {
+    fixture.detectChanges();
+    const checkbox = fixture.nativeElement.querySelector(
+      '#lab-test-4',
+    ) as HTMLInputElement;
+
+    checkbox.focus();
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    checkbox.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }));
+
+    expect(document.activeElement).toBe(checkbox);
+    expect(component.isTestSelected(4)).toBe(true);
+  });
+
   it('emits the selected patient and sorted test IDs when submitted', () => {
     fixture.detectChanges();
     const requestSubmitted = vi.fn();
