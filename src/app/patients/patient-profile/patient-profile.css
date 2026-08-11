@@ -77,10 +77,6 @@
   margin-bottom: 24px;
 }
 
-.recommendation-actions {
-  grid-template-columns: 1fr;
-}
-
 .page-header > :first-child {
   display: flex;
   flex-direction: column;
@@ -142,6 +138,10 @@
 /* ~500px: all cards stack full-width */
 @media (max-width: 1000px) {
   .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-actions {
     grid-template-columns: 1fr;
   }
 

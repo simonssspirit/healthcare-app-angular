@@ -38,26 +38,21 @@
 
     <div class="lab-tests-list">
       @for (test of filteredLabTests; track test.id) {
-        <div
+        <label
           class="lab-test-item"
           [class.selected]="isTestSelected(test.id)"
-          role="button"
-          tabindex="0"
-          (click)="toggleLabTest(test.id)"
-          (keyup.enter)="toggleLabTest(test.id)"
-          (keyup.space)="toggleLabTest(test.id)"
+          [for]="'lab-test-' + test.id"
         >
           <input
             kendoCheckBox
             type="checkbox"
+            [id]="'lab-test-' + test.id"
             class="lab-test-checkbox"
             [checked]="isTestSelected(test.id)"
-            (click)="$event.stopPropagation()"
             (change)="toggleLabTest(test.id)"
-            [attr.aria-label]="test.name"
           />
           <span class="lab-test-label">{{ test.name }}</span>
-        </div>
+        </label>
       }
     </div>
   </div>
