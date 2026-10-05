@@ -1,3 +1,5 @@
+export type AlertStatus = 'Open' | 'In Progress' | 'Resolved';
+
 export interface DailyAlert {
   id: number;
   title: string;
@@ -8,6 +10,7 @@ export interface DailyAlert {
   value: string;
   normalRange: string;
   priority: string;
+  status: AlertStatus;
   details: string;
   recommendations: string[];
 }
@@ -29,6 +32,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '12.5 mg/L',
     normalRange: '0-10 mg/L',
     priority: 'High',
+    status: 'Open',
     details:
       'C-reactive protein (CRP) levels are significantly elevated, indicating possible inflammation or infection. Recent lab results show a marked increase from the last test.',
     recommendations: [
@@ -48,6 +52,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '165/98 mmHg',
     normalRange: '120/80 mmHg',
     priority: 'High',
+    status: 'Open',
     details:
       'Blood pressure readings are consistently elevated above normal range. Patient has history of hypertension but readings have increased despite current medication.',
     recommendations: [
@@ -68,6 +73,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '185 mg/dL',
     normalRange: '70-100 mg/dL',
     priority: 'Medium',
+    status: 'Open',
     details:
       'Fasting glucose levels are elevated above normal range. Patient has pre-diabetes diagnosis and recent readings show progression.',
     recommendations: [
@@ -88,6 +94,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: 'Total: 265 mg/dL, LDL: 175 mg/dL',
     normalRange: 'Total: <200 mg/dL, LDL: <100 mg/dL',
     priority: 'Medium',
+    status: 'Open',
     details:
       'Lipid panel shows significantly elevated total cholesterol and LDL levels, increasing cardiovascular risk. Patient has family history of heart disease.',
     recommendations: [
@@ -108,6 +115,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '9.2 g/dL',
     normalRange: '13.5-17.5 g/dL',
     priority: 'High',
+    status: 'Open',
     details:
       'Hemoglobin levels are critically below the normal range suggesting moderate anemia. Patient reports fatigue and shortness of breath on exertion.',
     recommendations: [
@@ -127,6 +135,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '2.1 mg/dL',
     normalRange: '0.5-1.1 mg/dL',
     priority: 'High',
+    status: 'Open',
     details:
       'Serum creatinine is markedly elevated indicating reduced kidney function. Patient is on NSAIDs which may be contributing to renal impairment.',
     recommendations: [
@@ -146,6 +155,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: 'ST-segment depression',
     normalRange: 'Normal sinus rhythm',
     priority: 'High',
+    status: 'Open',
     details:
       'ECG shows ST-segment depression in leads V4-V6, potentially indicating myocardial ischemia. Patient reports intermittent chest tightness.',
     recommendations: [
@@ -166,6 +176,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
     value: '2.9 mEq/L',
     normalRange: '3.5-5.0 mEq/L',
     priority: 'Medium',
+    status: 'Open',
     details:
       'Potassium levels are below normal range. Patient is on loop diuretics for heart failure management which can cause potassium depletion.',
     recommendations: [

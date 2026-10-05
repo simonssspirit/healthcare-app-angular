@@ -32,6 +32,8 @@ import { KENDO_LAYOUT } from '@progress/kendo-angular-layout';
 import { KENDO_POPUP } from '@progress/kendo-angular-popup';
 import {
   SVGIcon,
+  bellIcon,
+  checkCircleIcon,
   chevronRightIcon,
   clipboardIcon,
   clockIcon,
@@ -47,6 +49,7 @@ import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
 import {
   DAILY_ALERTS,
   HOME_PATIENTS,
+  AlertStatus,
   DailyAlert,
   HomePatient,
 } from '../data/home.data';
@@ -113,6 +116,36 @@ export class HomeComponent implements OnInit, OnDestroy {
     return colorMap[status] ?? 'base';
   }
 
+  public getAlertStatusColor(status: AlertStatus): ChipThemeColor {
+    const colorMap: Record<AlertStatus, ChipThemeColor> = {
+      Open: 'error',
+      'In Progress': 'warning',
+      Resolved: 'success',
+    };
+    return colorMap[status];
+  }
+
+  public getAlertStatusIcon(status: AlertStatus): SVGIcon {
+    const iconMap: Record<AlertStatus, SVGIcon> = {
+      Open: this.bellIcon,
+      'In Progress': this.clockIcon,
+      Resolved: this.checkCircleIcon,
+    };
+    return iconMap[status];
+  }
+
+  public get displayedAlerts(): DailyAlert[] {
+    const active = this.dailyAlerts.filter((alert) => alert.status !== 'Resolved');
+    const resolved = this.dailyAlerts.filter((alert) => alert.status === 'Resolved');
+    return [...active, ...resolved];
+  }
+
+  public get allAlertsResolved(): boolean {
+    return (
+      this.dailyAlerts.length > 0 && this.dailyAlerts.every((alert) => alert.status === 'Resolved')
+    );
+  }
+
   public fileDataIcon: SVGIcon = {
     name: 'lab-text',
     content: `<svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -130,6 +163,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Next Patient Icons
   public clockIcon: SVGIcon = clockIcon;
+  public bellIcon: SVGIcon = bellIcon;
+  public checkCircleIcon: SVGIcon = checkCircleIcon;
   public chevronRightIcon: SVGIcon = chevronRightIcon;
   public linkIcon: SVGIcon = hyperlinkOpenIcon;
   public clipboardIcon: SVGIcon = clipboardIcon;
@@ -188,9 +223,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   ];
 
   // Daily Alerts data
-  public dailyAlerts: DailyAlert[] = [...DAILY_ALERTS];
+  public dailyAlerts: DailyAlert[] = DAILY_ALERTS.map((alert) => ({ ...alert }));
 
   public selectedAlert: DailyAlert | null = null;
+  public statusAnnouncement = '';
 
   // Reason for Visit data
   public reasonForVisit = {
@@ -390,10 +426,12 @@ Dr. Carter`;
     this.alertDialogOpened = false;
   }
 
-  public acknowledgeAlert(): void {
-    console.log('Alert acknowledged:', this.selectedAlert);
-    // Here you would typically update the alert status via a service
-    this.closeAlertDialog();
+  public setAlertStatus(alert: DailyAlert, status: AlertStatus): void {
+    if (alert.status === status) {
+      return;
+    }
+    alert.status = status;
+    this.statusAnnouncement = `${alert.title} marked as ${status}.`;
   }
 
   // Reason for Visit dialog methods

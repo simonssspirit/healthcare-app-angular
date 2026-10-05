@@ -97,7 +97,13 @@
         </button>
       </div>
 
-      <kendo-grid [data]="appointments" adaptiveMode="auto">
+      <kendo-grid
+        [kendoGridBinding]="appointments"
+        [groupable]="true"
+        filterable="menu"
+        [navigable]="true"
+        adaptiveMode="auto"
+      >
         <kendo-grid-column field="time" title="Time" [width]="110"></kendo-grid-column>
         <kendo-grid-column
           field="patientName"
@@ -111,6 +117,7 @@
               [label]="dataItem.status"
               [themeColor]="getAppointmentStatusColor(dataItem.status)"
               [removable]="false"
+              fillMode="solid"
               rounded="full"
             ></kendo-chip>
           </ng-template>
@@ -220,14 +227,17 @@
 
       <!-- Daily Alerts Header -->
       <h3 class="section-subtitle">Daily Alerts</h3>
+      <span class="visually-hidden" role="status" aria-live="polite">{{ statusAnnouncement }}</span>
 
       <!-- Daily Alerts List -->
       <div class="daily-alerts">
-        @for (alert of dailyAlerts; track alert.id) {
+        @for (alert of displayedAlerts; track alert.id) {
           <div
             class="alert-item"
+            [class.alert-item--resolved]="alert.status === 'Resolved'"
             role="button"
             tabindex="0"
+            [attr.aria-label]="alert.title + ' — status: ' + alert.status + '. Open alert details.'"
             (click)="openAlertDialog(alert)"
             (keyup.enter)="openAlertDialog(alert)"
             (keyup.space)="openAlertDialog(alert)"
@@ -237,6 +247,15 @@
                 <span class="alert-title">{{ alert.title }}</span>
                 <div class="alert-bottom">
                   <span class="alert-time">{{ alert.time }}</span>
+                  <span
+                    class="alert-status-chip"
+                    [class.alert-status-chip--open]="alert.status === 'Open'"
+                    [class.alert-status-chip--progress]="alert.status === 'In Progress'"
+                    [class.alert-status-chip--resolved]="alert.status === 'Resolved'"
+                  >
+                    <kendo-svgicon [icon]="getAlertStatusIcon(alert.status)"></kendo-svgicon>
+                    <span class="alert-status-chip__label">{{ alert.status }}</span>
+                  </span>
                   <span class="alert-link">
                     <span class="link-text">View</span>
                     <kendo-svgicon [icon]="chevronRightIcon"></kendo-svgicon>
@@ -245,6 +264,11 @@
               </div>
             </div>
           </div>
+        }
+        @if (dailyAlerts.length === 0) {
+          <p class="alerts-all-clear">No alerts for today.</p>
+        } @else if (allAlertsResolved) {
+          <p class="alerts-all-clear">All clear — every alert has been resolved.</p>
         }
       </div>
     </kendo-card-body>
@@ -383,6 +407,19 @@
         </div>
       </div>
 
+      <!-- Alert Status -->
+      <div>
+        <h3 class="field-label">Status</h3>
+        <kendo-chip
+          [label]="selectedAlert.status"
+          [svgIcon]="getAlertStatusIcon(selectedAlert.status)"
+          [themeColor]="getAlertStatusColor(selectedAlert.status)"
+          [removable]="false"
+          fillMode="solid"
+          rounded="full"
+        ></kendo-chip>
+      </div>
+
       <!-- Alert Condition -->
       <div>
         <h3 class="field-label">Condition</h3>
@@ -429,7 +466,19 @@
 
     <kendo-dialog-actions layout="end">
       <button kendoButton (click)="closeAlertDialog()">Close</button>
-      <button kendoButton themeColor="primary" (click)="acknowledgeAlert()">Acknowledge</button>
+      @if (selectedAlert.status !== 'Open') {
+        <button kendoButton (click)="setAlertStatus(selectedAlert, 'Open')">Reopen</button>
+      }
+      @if (selectedAlert.status !== 'In Progress') {
+        <button kendoButton themeColor="warning" (click)="setAlertStatus(selectedAlert, 'In Progress')">
+          Mark In Progress
+        </button>
+      }
+      @if (selectedAlert.status !== 'Resolved') {
+        <button kendoButton themeColor="primary" (click)="setAlertStatus(selectedAlert, 'Resolved')">
+          Mark Resolved
+        </button>
+      }
     </kendo-dialog-actions>
   </kendo-dialog>
 }
