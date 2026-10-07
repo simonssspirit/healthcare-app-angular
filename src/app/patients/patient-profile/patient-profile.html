@@ -1,15 +1,13 @@
 <section class="page-section">
   <div class="page-header">
     <div>
-      <kendo-breadcrumb [items]="breadcrumbItems" (itemClick)="onBreadcrumbItemClick($event)"></kendo-breadcrumb>
+      <kendo-breadcrumb
+        [items]="breadcrumbItems"
+        (itemClick)="onBreadcrumbItemClick($event)"
+      ></kendo-breadcrumb>
     </div>
     <div class="page-actions">
-      <button
-        kendoButton
-        rounded="full"
-        [svgIcon]="downloadIcon"
-        (click)="exportToExcel()"
-      >
+      <button kendoButton rounded="full" [svgIcon]="downloadIcon" (click)="exportToExcel()">
         Export
       </button>
     </div>
@@ -112,27 +110,45 @@
         </div>
       </kendo-card>
     </div>
-  }
 
-  <!-- Patient Note Editor -->
-  <kendo-card class="patient-note-card" width="100%">
-    <kendo-card-body>
-      <div class="note-header">
-        <h3 class="note-title">Patient Note</h3>
-        <button kendoButton rounded="full" (click)="saveNotes()">
-          <kendo-svgicon [icon]="downloadIcon" size="small"></kendo-svgicon>
-          Save
-        </button>
-      </div>
-      <kendo-editor
-        class="patient-note-editor"
-        [value]="patient?.notes || ''"
-        [style.height.px]="250"
-        [iframeCss]="editorIframeCss"
-      >
-      </kendo-editor>
-    </kendo-card-body>
-  </kendo-card>
+    <!-- Patient Note Editor -->
+    <kendo-card class="patient-note-card" width="100%">
+      <kendo-card-body>
+        <div class="note-header">
+          <h3 class="note-title">Patient Note</h3>
+          <button kendoButton rounded="full" [disabled]="isSavingNote" (click)="saveNotes()">
+            <kendo-svgicon [icon]="downloadIcon" size="small"></kendo-svgicon>
+            Save
+          </button>
+        </div>
+        <div class="note-status-region">
+          @if (noteSaveStatus) {
+            <div
+              class="note-status"
+              [class.note-status--success]="noteSaveStatus.kind === 'success'"
+              [class.note-status--error]="noteSaveStatus.kind === 'error'"
+              [attr.role]="noteSaveStatus.kind === 'error' ? 'alert' : 'status'"
+              [attr.aria-live]="noteSaveStatus.kind === 'error' ? 'assertive' : 'polite'"
+              data-testid="note-save-status"
+            >
+              <kendo-svgicon
+                [icon]="noteSaveStatus.kind === 'success' ? checkIcon : exclamationCircleIcon"
+                size="small"
+              ></kendo-svgicon>
+              <span>{{ noteSaveStatus.message }}</span>
+            </div>
+          }
+        </div>
+        <kendo-editor
+          class="patient-note-editor"
+          [(value)]="noteDraft"
+          [style.height.px]="250"
+          [iframeCss]="editorIframeCss"
+        >
+        </kendo-editor>
+      </kendo-card-body>
+    </kendo-card>
+  }
 
   <!-- Lab Results Grid -->
   <kendo-card class="lab-results-card" width="100%">

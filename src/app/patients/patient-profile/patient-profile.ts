@@ -13,11 +13,21 @@ import { KENDO_PAGER } from '@progress/kendo-angular-pager';
 import { KENDO_TOOLBAR } from '@progress/kendo-angular-toolbar';
 
 import { SortDescriptor } from '@progress/kendo-data-query';
-import { downloadIcon, homeIcon, sparklesIcon, SVGIcon, userIcon } from '@progress/kendo-svg-icons';
+import {
+  checkIcon,
+  downloadIcon,
+  exclamationCircleIcon,
+  homeIcon,
+  sparklesIcon,
+  SVGIcon,
+  userIcon,
+} from '@progress/kendo-svg-icons';
 
 import { LabResult, PatientProfile } from '../../data/patients.data';
 import { PageHeaderService } from '../../services/page-header.service';
 import { PatientsService } from '../../services/patients.service';
+
+type NoteSaveStatus = { kind: 'success' | 'error'; message: string } | null;
 
 @Component({
   selector: 'app-patient-profile',
@@ -44,6 +54,8 @@ export class PatientProfileComponent implements OnInit, OnDestroy {
 
   public downloadIcon: SVGIcon = downloadIcon;
   public sparklesIcon: SVGIcon = sparklesIcon;
+  public checkIcon: SVGIcon = checkIcon;
+  public exclamationCircleIcon: SVGIcon = exclamationCircleIcon;
 
   public editorIframeCss: EditorCssSettings = {
     path: 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap',
@@ -72,10 +84,15 @@ export class PatientProfileComponent implements OnInit, OnDestroy {
   public labResults: LabResult[] = [];
   public labResultsSort: SortDescriptor[] = [{ field: 'testName', dir: 'asc' }];
 
+  public noteDraft = '';
+  public noteSaveStatus: NoteSaveStatus = null;
+  public isSavingNote = false;
+
   private pageHeaderService = inject(PageHeaderService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private patientsService = inject(PatientsService);
+  private noteStatusTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
     this.pageHeaderService.title.set('Patients');
@@ -86,12 +103,15 @@ export class PatientProfileComponent implements OnInit, OnDestroy {
       const id = params.get('id');
       if (id) {
         this.patientId = parseInt(id, 10);
+        this.noteDraft = '';
+        this.clearNoteStatus();
         this.loadPatientData();
       }
     });
   }
 
   ngOnDestroy(): void {
+    this.clearNoteStatus();
     this.pageHeaderService.title.set('');
     this.pageHeaderService.subtitle.set('');
   }
@@ -101,6 +121,7 @@ export class PatientProfileComponent implements OnInit, OnDestroy {
     if (patientData) {
       this.patient = patientData;
       this.labResults = patientData.labResults;
+      this.noteDraft = patientData.notes ?? '';
     } else {
       // Patient not found, navigate back to patients list
       this.router.navigate(['/patients']);
@@ -118,8 +139,47 @@ export class PatientProfileComponent implements OnInit, OnDestroy {
   }
 
   public saveNotes(): void {
-    console.log('Saving patient notes...');
-    // In a real app, save to backend service
+    if (this.isSavingNote || !this.patient) {
+      return;
+    }
+
+    this.isSavingNote = true;
+    this.clearNoteStatus();
+
+    try {
+      const saved = this.patientsService.updatePatientNotes(this.patientId, this.noteDraft);
+
+      if (saved) {
+        this.patient.notes = this.noteDraft;
+        this.setNoteStatus('success', 'Patient note saved.');
+      } else {
+        this.setNoteStatus(
+          'error',
+          'Patient note could not be saved. Your changes were not stored.',
+        );
+      }
+    } finally {
+      this.isSavingNote = false;
+    }
+  }
+
+  private setNoteStatus(kind: 'success' | 'error', message: string): void {
+    this.noteSaveStatus = { kind, message };
+
+    if (kind === 'success') {
+      this.noteStatusTimeoutId = setTimeout(() => {
+        this.noteSaveStatus = null;
+        this.noteStatusTimeoutId = null;
+      }, 4000);
+    }
+  }
+
+  private clearNoteStatus(): void {
+    if (this.noteStatusTimeoutId !== null) {
+      clearTimeout(this.noteStatusTimeoutId);
+      this.noteStatusTimeoutId = null;
+    }
+    this.noteSaveStatus = null;
   }
 
   public exportToExcel(): void {
