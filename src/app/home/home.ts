@@ -7,6 +7,7 @@ import {
   ViewEncapsulation,
   HostListener,
   signal,
+  computed,
   inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -44,15 +45,9 @@ import {
   xIcon,
 } from '@progress/kendo-svg-icons';
 import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
-import {
-  DAILY_ALERTS,
-  HOME_PATIENTS,
-  LAB_TESTS,
-  DailyAlert,
-  HomePatient,
-  LabTest,
-} from '../data/home.data';
+import { HOME_PATIENTS, LAB_TESTS, DailyAlert, HomePatient, LabTest } from '../data/home.data';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
+import { AlertsService, isBlankText } from '../services/alerts.service';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
 
@@ -187,9 +182,28 @@ export class HomeComponent implements OnInit, OnDestroy {
   ];
 
   // Daily Alerts data
-  public dailyAlerts: DailyAlert[] = [...DAILY_ALERTS];
+  private alertsService = inject(AlertsService);
 
-  public selectedAlert: DailyAlert | null = null;
+  public dailyAlerts = this.alertsService.alerts;
+  public selectedAlertId = signal<number | null>(null);
+  public selectedAlert = computed<DailyAlert | null>(() => {
+    const id = this.selectedAlertId();
+    return id === null ? null : (this.alertsService.getAlert(id) ?? null);
+  });
+
+  public alertActionFeedback = '';
+
+  // Alert-originated action context
+  public alertNoteContext: DailyAlert | null = null;
+  public alertTestContext: DailyAlert | null = null;
+  public clinicalNoteError = '';
+  public labTestError = '';
+  // Reentrancy guards for the synchronous save/submit flow below. Today's save/submit calls are
+  // synchronous and always reset these flags before a dialog can be re-opened, so the actual
+  // double-submit protection comes from the dialog closing and its fields being cleared; these
+  // flags exist to keep that guarantee if persistence becomes asynchronous in the future.
+  public isSavingClinicalNote = false;
+  public isSendingLabTestRequest = false;
 
   // Reason for Visit data
   public reasonForVisit = {
@@ -322,36 +336,103 @@ Dr. Carter`;
 
   // Dialog methods
   public openClinicalNoteDialog(): void {
+    this.alertNoteContext = null;
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
+    this.clinicalNoteDialogOpened = true;
+  }
+
+  public openClinicalNoteDialogForAlert(alert: DailyAlert): void {
+    this.alertNoteContext = alert;
+    this.selectedPatient = this.resolveHomePatient(alert);
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
     this.clinicalNoteDialogOpened = true;
   }
 
   public closeClinicalNoteDialog(): void {
     this.clinicalNoteDialogOpened = false;
+    this.alertNoteContext = null;
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
   }
 
   public saveClinicalNote(): void {
-    console.log('Saving clinical note for:', this.selectedPatient.name, this.clinicalNoteText);
-    // Here you would typically save to a service
+    if (this.isSavingClinicalNote) {
+      return;
+    }
+
+    if (isBlankText(this.clinicalNoteText)) {
+      this.clinicalNoteError = 'Note text is required.';
+      return;
+    }
+
+    this.isSavingClinicalNote = true;
+
+    const alert = this.alertNoteContext;
+
+    if (alert) {
+      this.alertsService.addNote(alert.id, alert.patientId, this.clinicalNoteText);
+      this.alertActionFeedback = `Note saved for ${alert.patient}.`;
+    }
+
     this.closeClinicalNoteDialog();
   }
 
   public openLabTestDialog(): void {
+    this.alertTestContext = null;
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
+    this.labTestDialogOpened = true;
+  }
+
+  public openLabTestDialogForAlert(alert: DailyAlert): void {
+    this.alertTestContext = alert;
+    this.labTestPatient = this.resolveHomePatient(alert);
+    this.labTestSearchQuery = '';
+    this.clearLabTestSelection();
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
     this.labTestDialogOpened = true;
   }
 
   public closeLabTestDialog(): void {
     this.labTestDialogOpened = false;
+    this.alertTestContext = null;
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
   }
 
   public sendLabTestRequest(): void {
+    if (this.isSendingLabTestRequest) {
+      return;
+    }
+
     const selectedTests = this.labTests.filter((test) => test.selected);
-    console.log(
-      'Sending lab test request for:',
-      this.labTestPatient?.name,
-      'Tests:',
-      selectedTests,
-    );
-    // Here you would typically send via a service
+
+    if (selectedTests.length === 0) {
+      this.labTestError = 'Select at least one lab test.';
+      return;
+    }
+
+    this.isSendingLabTestRequest = true;
+
+    const alert = this.alertTestContext;
+
+    if (alert) {
+      this.alertsService.addTestRequest(
+        alert.id,
+        alert.patientId,
+        selectedTests.map((test) => test.name),
+      );
+      this.alertActionFeedback = `Test request sent for ${alert.patient}.`;
+    }
+
     this.closeLabTestDialog();
   }
 
@@ -365,7 +446,32 @@ Dr. Carter`;
   }
 
   public toggleLabTest(test: LabTest): void {
-    test.selected = !test.selected;
+    this.labTests = this.labTests.map((item) =>
+      item.id === test.id ? { ...item, selected: !item.selected } : item,
+    );
+    this.labTestError = '';
+  }
+
+  private clearLabTestSelection(): void {
+    this.labTests = this.labTests.map((test) => ({ ...test, selected: false }));
+  }
+
+  public resolveHomePatient(alert: DailyAlert): HomePatient {
+    const existing = this.patients.find((patient) => patient.patientId === alert.patientId);
+
+    if (existing) {
+      return existing;
+    }
+
+    const created: HomePatient = {
+      id: -alert.id,
+      name: alert.patient,
+      patientId: alert.patientId,
+    };
+
+    this.patients = [...this.patients, created];
+
+    return created;
   }
 
   public openMessageNurseDialog(): void {
@@ -391,18 +497,37 @@ Dr. Carter`;
 
   // Alert dialog methods
   public openAlertDialog(alert: DailyAlert): void {
-    this.selectedAlert = alert;
+    this.selectedAlertId.set(alert.id);
     this.alertDialogOpened = true;
   }
 
   public closeAlertDialog(): void {
     this.alertDialogOpened = false;
+    this.selectedAlertId.set(null);
+    this.alertActionFeedback = '';
   }
 
-  public acknowledgeAlert(): void {
-    console.log('Alert acknowledged:', this.selectedAlert);
-    // Here you would typically update the alert status via a service
-    this.closeAlertDialog();
+  public markAlertReviewed(alert: DailyAlert): void {
+    this.alertsService.markReviewed(alert.id);
+  }
+
+  public reviewSelectedAlert(): void {
+    const alert = this.selectedAlert();
+
+    if (!alert) {
+      return;
+    }
+
+    this.alertsService.markReviewed(alert.id);
+    this.alertActionFeedback = `Alert marked as reviewed for ${alert.patient}.`;
+  }
+
+  public isAlertReviewed(alert: DailyAlert): boolean {
+    return alert.status === 'Reviewed';
+  }
+
+  public hasSuggestedNextAction(alert: DailyAlert | null): boolean {
+    return !!alert?.suggestedNextAction && alert.suggestedNextAction.trim().length > 0;
   }
 
   // Reason for Visit dialog methods

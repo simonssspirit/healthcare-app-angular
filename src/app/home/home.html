@@ -223,26 +223,60 @@
 
       <!-- Daily Alerts List -->
       <div class="daily-alerts">
-        @for (alert of dailyAlerts; track alert.id) {
-          <div
-            class="alert-item"
-            role="button"
-            tabindex="0"
-            (click)="openAlertDialog(alert)"
-            (keyup.enter)="openAlertDialog(alert)"
-            (keyup.space)="openAlertDialog(alert)"
-          >
-            <div>
+        @for (alert of dailyAlerts(); track alert.id) {
+          <div class="alert-item" [class.alert-item--reviewed]="isAlertReviewed(alert)">
+            <button
+              type="button"
+              class="alert-open-button"
+              (click)="openAlertDialog(alert)"
+              [attr.aria-label]="
+                (isAlertReviewed(alert) ? 'Reviewed. ' : '') + 'View details for ' + alert.title
+              "
+            >
               <div class="alert-content">
                 <span class="alert-title">{{ alert.title }}</span>
                 <div class="alert-bottom">
                   <span class="alert-time">{{ alert.time }}</span>
+                  @if (isAlertReviewed(alert)) {
+                    <span class="alert-status-badge">Reviewed</span>
+                  }
                   <span class="alert-link">
                     <span class="link-text">View</span>
                     <kendo-svgicon [icon]="chevronRightIcon"></kendo-svgicon>
                   </span>
                 </div>
               </div>
+            </button>
+
+            <div class="alert-actions">
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                [disabled]="isAlertReviewed(alert)"
+                (click)="markAlertReviewed(alert)"
+                [attr.aria-label]="'Mark ' + alert.title + ' as reviewed'"
+              >
+                Review
+              </button>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                (click)="openClinicalNoteDialogForAlert(alert)"
+                [attr.aria-label]="'Add note for ' + alert.title"
+              >
+                Add note
+              </button>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                (click)="openLabTestDialogForAlert(alert)"
+                [attr.aria-label]="'Request test for ' + alert.title"
+              >
+                Request test
+              </button>
             </div>
           </div>
         }
@@ -260,7 +294,11 @@
     class="clinical-note-dialog"
   >
     <kendo-dialog-titlebar>
-      <div class="dialog-title">New Clinical Note</div>
+      <div class="dialog-title">
+        {{
+          alertNoteContext ? 'New Clinical Note - ' + alertNoteContext.title : 'New Clinical Note'
+        }}
+      </div>
     </kendo-dialog-titlebar>
 
     <div class="dialog-content">
@@ -269,6 +307,7 @@
           <kendo-dropdownlist
             [data]="patients"
             [(ngModel)]="selectedPatient"
+            [disabled]="!!alertNoteContext"
             textField="name"
             valueField="id"
             [valuePrimitive]="false"
@@ -288,13 +327,23 @@
             resizeable="vertical"
           >
           </kendo-textarea>
+          @if (clinicalNoteError) {
+            <p class="field-error" role="alert">{{ clinicalNoteError }}</p>
+          }
         </kendo-label>
       </div>
     </div>
 
     <kendo-dialog-actions layout="end">
       <button kendoButton (click)="closeClinicalNoteDialog()">Discard</button>
-      <button kendoButton themeColor="primary" (click)="saveClinicalNote()">Save note</button>
+      <button
+        kendoButton
+        themeColor="primary"
+        [disabled]="isSavingClinicalNote"
+        (click)="saveClinicalNote()"
+      >
+        Save note
+      </button>
     </kendo-dialog-actions>
   </kendo-dialog>
 }
@@ -317,6 +366,7 @@
           <kendo-dropdownlist
             [data]="patients"
             [(ngModel)]="labTestPatient"
+            [disabled]="!!alertTestContext"
             textField="name"
             valueField="id"
             [valuePrimitive]="false"
@@ -351,7 +401,14 @@
             (keyup.enter)="toggleLabTest(test)"
             (keyup.space)="toggleLabTest(test)"
           >
-            <kendo-checkbox #checkboxRef [(ngModel)]="test.selected" class="lab-test-checkbox">
+            <kendo-checkbox
+              #checkboxRef
+              [ngModel]="test.selected"
+              (ngModelChange)="toggleLabTest(test)"
+              [ngModelOptions]="{ standalone: true }"
+              (click)="$event.stopPropagation()"
+              class="lab-test-checkbox"
+            >
             </kendo-checkbox>
             <kendo-label
               class="k-checkbox-label lab-test-label"
@@ -362,11 +419,22 @@
           </div>
         }
       </div>
+
+      @if (labTestError) {
+        <p class="field-error" role="alert">{{ labTestError }}</p>
+      }
     </div>
 
     <kendo-dialog-actions layout="end">
       <button kendoButton (click)="closeLabTestDialog()">Discard</button>
-      <button kendoButton themeColor="primary" (click)="sendLabTestRequest()">Send request</button>
+      <button
+        kendoButton
+        themeColor="primary"
+        [disabled]="isSendingLabTestRequest"
+        (click)="sendLabTestRequest()"
+      >
+        Send request
+      </button>
     </kendo-dialog-actions>
   </kendo-dialog>
 }
@@ -418,7 +486,7 @@
 }
 
 <!-- Alert Details Dialog -->
-@if (alertDialogOpened && selectedAlert) {
+@if (alertDialogOpened && selectedAlert(); as selectedAlert) {
   <kendo-dialog
     [width]="dlgW(720)"
     [height]="dlgH(650)"
@@ -457,6 +525,14 @@
         </div>
       </div>
 
+      <!-- Suggested Next Action -->
+      @if (hasSuggestedNextAction(selectedAlert)) {
+        <div class="suggested-next-action" aria-live="polite">
+          <h3 class="field-label">Suggested Next Action</h3>
+          <p class="suggested-next-action-text">{{ selectedAlert.suggestedNextAction }}</p>
+        </div>
+      }
+
       <!-- Lab Values -->
       <div>
         <h3 class="field-label">Lab Values</h3>
@@ -487,11 +563,39 @@
           }
         </ul>
       </div>
+
+      @if (alertActionFeedback) {
+        <p class="alert-action-feedback" role="status">{{ alertActionFeedback }}</p>
+      }
     </div>
 
     <kendo-dialog-actions layout="end">
       <button kendoButton (click)="closeAlertDialog()">Close</button>
-      <button kendoButton themeColor="primary" (click)="acknowledgeAlert()">Acknowledge</button>
+      <button
+        kendoButton
+        [svgIcon]="stickyNoteIcon"
+        (click)="openClinicalNoteDialogForAlert(selectedAlert)"
+        [attr.aria-label]="'Add note for ' + selectedAlert.patient"
+      >
+        Add note
+      </button>
+      <button
+        kendoButton
+        [svgIcon]="fileDataIcon"
+        (click)="openLabTestDialogForAlert(selectedAlert)"
+        [attr.aria-label]="'Request test for ' + selectedAlert.patient"
+      >
+        Request test
+      </button>
+      <button
+        kendoButton
+        themeColor="primary"
+        (click)="reviewSelectedAlert()"
+        [disabled]="isAlertReviewed(selectedAlert)"
+        [attr.aria-label]="'Mark alert as reviewed for ' + selectedAlert.patient"
+      >
+        {{ isAlertReviewed(selectedAlert) ? 'Reviewed' : 'Review' }}
+      </button>
     </kendo-dialog-actions>
   </kendo-dialog>
 }
