@@ -21,7 +21,7 @@
 .k-breadcrumb-last-item .k-breadcrumb-link,
 .k-breadcrumb-last-item .k-breadcrumb-link:hover,
 .k-breadcrumb-last-item .k-breadcrumb-link:focus {
-  color:#3f3d40;
+  color: #3f3d40;
 }
 
 /* Page Actions */
@@ -231,6 +231,32 @@
 
 .patient-note-editor {
   width: 100%;
+}
+
+.note-status-region {
+  min-height: 0;
+}
+
+.note-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--kendo-border-radius-md, 4px);
+  font-size: 14px;
+}
+
+.note-status--success {
+  color: var(--kendo-color-success-on-subtle, #1a7f37);
+  background-color: var(--kendo-color-success-subtle, #e6f4ea);
+  border-color: var(--kendo-color-success-emphasis, #1a7f37);
+}
+
+.note-status--error {
+  color: var(--kendo-color-error-on-subtle, #b42318);
+  background-color: var(--kendo-color-error-subtle, #fdecea);
+  border-color: var(--kendo-color-error-emphasis, #b42318);
 }
 
 /* Lab Results Card */
