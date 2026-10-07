@@ -1,6 +1,17 @@
 import { TestBed } from '@angular/core/testing';
-import { AlertsService } from './alerts.service';
+import { AlertsService, isBlankText } from './alerts.service';
 import { DAILY_ALERTS } from '../data/home.data';
+
+describe('isBlankText', () => {
+  it('should treat empty and whitespace-only strings as blank', () => {
+    expect(isBlankText('')).toBe(true);
+    expect(isBlankText('   ')).toBe(true);
+  });
+
+  it('should treat strings with visible characters as not blank', () => {
+    expect(isBlankText('  note  ')).toBe(false);
+  });
+});
 
 describe('AlertsService', () => {
   let service: AlertsService;

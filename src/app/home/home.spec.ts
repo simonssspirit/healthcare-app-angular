@@ -221,6 +221,72 @@ describe('HomeComponent', () => {
     expect(alertsService.testRequests().length).toBe(0);
   });
 
+  it('should not leak a selected test into a later submission for a different alert', () => {
+    const { component } = createComponent();
+    const alert2 = component.dailyAlerts().find((a) => a.id === 2)!;
+    const alert3 = component.dailyAlerts().find((a) => a.id === 3)!;
+
+    component.openLabTestDialogForAlert(alert2);
+    component.toggleLabTest(component.labTests[0]);
+    component.sendLabTestRequest();
+
+    component.openLabTestDialogForAlert(alert3);
+
+    expect(component.labTests.every((t) => !t.selected)).toBe(true);
+  });
+
+  it('should not leak a selected test into the generic Request Lab Test dialog after cancelling', () => {
+    const { component } = createComponent();
+    const alert2 = component.dailyAlerts().find((a) => a.id === 2)!;
+
+    component.openLabTestDialogForAlert(alert2);
+    component.toggleLabTest(component.labTests[0]);
+    component.closeLabTestDialog();
+
+    component.openLabTestDialog();
+
+    expect(component.labTestPatient).toBe(component.patients[0]);
+    expect(component.labTests.every((t) => !t.selected)).toBe(true);
+  });
+
+  it('should disable the patient dropdown while a note is tied to an alert', async () => {
+    const { fixture, component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openClinicalNoteDialogForAlert(alert1);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const dropdown = document.querySelector('.clinical-note-dialog kendo-dropdownlist');
+    expect(dropdown?.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('should not disable the patient dropdown for the generic Add Note quick action', async () => {
+    const { fixture, component } = createComponent();
+
+    component.openClinicalNoteDialog();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const dropdown = document.querySelector('.clinical-note-dialog kendo-dropdownlist');
+    expect(dropdown?.getAttribute('aria-disabled')).not.toBe('true');
+  });
+
+  it('should disable the patient dropdown while a test request is tied to an alert', async () => {
+    const { fixture, component } = createComponent();
+    const alert2 = component.dailyAlerts().find((a) => a.id === 2)!;
+
+    component.openLabTestDialogForAlert(alert2);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const dropdown = document.querySelector('.lab-test-dialog kendo-dropdownlist');
+    expect(dropdown?.getAttribute('aria-disabled')).toBe('true');
+  });
+
   it('should associate actions with the correct alert when a patient has several alerts', () => {
     const { component } = createComponent();
     const alertA = component.dailyAlerts().find((a) => a.id === 1)!;
@@ -359,6 +425,21 @@ describe('HomeComponent', () => {
     const badges = fixture.nativeElement.querySelectorAll('.alert-status-badge');
     expect(badges.length).toBe(1);
     expect(badges[0].textContent.trim()).toBe('Reviewed');
+  });
+
+  it('should announce reviewed status in the open button aria-label for assistive tech', async () => {
+    const { fixture, component } = createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.markAlertReviewed(component.dailyAlerts()[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const firstOpenButton = fixture.nativeElement.querySelector(
+      '.alert-open-button',
+    ) as HTMLButtonElement;
+    expect(firstOpenButton.getAttribute('aria-label')).toMatch(/^Reviewed\. /);
   });
 
   it('should keep the reviewed alert in the list', async () => {
