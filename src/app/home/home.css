@@ -927,7 +927,7 @@
   border: 1px solid var(--kendo-color-success, #37b400);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (hover: none) {
   .alert-actions {
     opacity: 1;
   }

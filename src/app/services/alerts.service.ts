@@ -7,6 +7,11 @@ import {
   DailyAlert,
 } from '../data/home.data';
 
+/** Single source of truth for the "blank text" rule shared by callers and this service. */
+export function isBlankText(text: string): boolean {
+  return text.trim().length === 0;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AlertsService {
   private readonly alertsSignal = signal<DailyAlert[]>(this.seedAlerts());
@@ -35,9 +40,7 @@ export class AlertsService {
   }
 
   public addNote(alertId: number, patientId: string, text: string): AlertNoteRecord | null {
-    const trimmed = text.trim();
-
-    if (trimmed.length === 0) {
+    if (isBlankText(text)) {
       return null;
     }
 
@@ -45,7 +48,7 @@ export class AlertsService {
       id: guid(),
       alertId,
       patientId,
-      text: trimmed,
+      text: text.trim(),
       createdAt: new Date(),
     };
 

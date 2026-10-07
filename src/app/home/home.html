@@ -229,7 +229,9 @@
               type="button"
               class="alert-open-button"
               (click)="openAlertDialog(alert)"
-              [attr.aria-label]="'View details for ' + alert.title"
+              [attr.aria-label]="
+                (isAlertReviewed(alert) ? 'Reviewed. ' : '') + 'View details for ' + alert.title
+              "
             >
               <div class="alert-content">
                 <span class="alert-title">{{ alert.title }}</span>
@@ -305,6 +307,7 @@
           <kendo-dropdownlist
             [data]="patients"
             [(ngModel)]="selectedPatient"
+            [disabled]="!!alertNoteContext"
             textField="name"
             valueField="id"
             [valuePrimitive]="false"
@@ -363,6 +366,7 @@
           <kendo-dropdownlist
             [data]="patients"
             [(ngModel)]="labTestPatient"
+            [disabled]="!!alertTestContext"
             textField="name"
             valueField="id"
             [valuePrimitive]="false"

@@ -47,7 +47,7 @@ import {
 import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
 import { HOME_PATIENTS, LAB_TESTS, DailyAlert, HomePatient, LabTest } from '../data/home.data';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
-import { AlertsService } from '../services/alerts.service';
+import { AlertsService, isBlankText } from '../services/alerts.service';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
 
@@ -198,6 +198,10 @@ export class HomeComponent implements OnInit, OnDestroy {
   public alertTestContext: DailyAlert | null = null;
   public clinicalNoteError = '';
   public labTestError = '';
+  // Reentrancy guards for the synchronous save/submit flow below. Today's save/submit calls are
+  // synchronous and always reset these flags before a dialog can be re-opened, so the actual
+  // double-submit protection comes from the dialog closing and its fields being cleared; these
+  // flags exist to keep that guarantee if persistence becomes asynchronous in the future.
   public isSavingClinicalNote = false;
   public isSendingLabTestRequest = false;
 
@@ -361,7 +365,7 @@ Dr. Carter`;
       return;
     }
 
-    if (this.clinicalNoteText.trim().length === 0) {
+    if (isBlankText(this.clinicalNoteText)) {
       this.clinicalNoteError = 'Note text is required.';
       return;
     }
@@ -382,6 +386,7 @@ Dr. Carter`;
     this.alertTestContext = null;
     this.labTestError = '';
     this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
     this.labTestDialogOpened = true;
   }
 
@@ -400,6 +405,7 @@ Dr. Carter`;
     this.alertTestContext = null;
     this.labTestError = '';
     this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
   }
 
   public sendLabTestRequest(): void {
