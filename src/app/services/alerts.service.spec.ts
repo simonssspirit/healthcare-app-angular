@@ -25,38 +25,83 @@ describe('AlertsService', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should seed every alert with status New', () => {
-    expect(service.alerts().every((alert) => alert.status === 'New')).toBe(true);
+  it('should seed every alert with status Open', () => {
+    expect(service.alerts().every((alert) => alert.status === 'Open')).toBe(true);
     expect(service.alerts().length).toBe(DAILY_ALERTS.length);
   });
 
   it('should not mutate the DAILY_ALERTS source array', () => {
-    service.markReviewed(1);
+    service.startProgress(1);
+    service.markResolved(1);
 
-    expect(DAILY_ALERTS[0].status).toBe('New');
+    expect(DAILY_ALERTS[0].status).toBe('Open');
   });
 
-  it('should mark an alert as reviewed', () => {
-    service.markReviewed(1);
+  it('should move an Open alert to In Progress', () => {
+    service.startProgress(1);
 
-    expect(service.getAlert(1)!.status).toBe('Reviewed');
+    expect(service.getAlert(1)!.status).toBe('In Progress');
   });
 
-  it('should be idempotent when marking the same alert twice', () => {
-    service.markReviewed(1);
+  it('should move an In Progress alert to Resolved', () => {
+    service.startProgress(1);
+    service.markResolved(1);
+
+    expect(service.getAlert(1)!.status).toBe('Resolved');
+  });
+
+  it('should allow resolving directly from Open', () => {
+    service.markResolved(2);
+
+    expect(service.getAlert(2)!.status).toBe('Resolved');
+  });
+
+  it('should be idempotent when resolving the same alert twice', () => {
+    service.markResolved(1);
     const afterFirst = service.alerts();
 
-    service.markReviewed(1);
+    service.markResolved(1);
 
     expect(service.alerts()).toBe(afterFirst);
-    expect(service.getAlert(1)!.status).toBe('Reviewed');
+    expect(service.getAlert(1)!.status).toBe('Resolved');
+  });
+
+  it('should ignore startProgress on an alert that is already In Progress', () => {
+    service.startProgress(1);
+    const afterFirst = service.alerts();
+
+    service.startProgress(1);
+
+    expect(service.alerts()).toBe(afterFirst);
+    expect(service.getAlert(1)!.status).toBe('In Progress');
+  });
+
+  it('should not reopen a Resolved alert via startProgress', () => {
+    service.markResolved(1);
+    const afterResolve = service.alerts();
+
+    service.startProgress(1);
+
+    expect(service.alerts()).toBe(afterResolve);
+    expect(service.getAlert(1)!.status).toBe('Resolved');
   });
 
   it('should ignore an unknown alert id', () => {
     const lengthBefore = service.alerts().length;
+    const before = service.alerts();
 
-    expect(() => service.markReviewed(9999)).not.toThrow();
+    expect(() => service.startProgress(9999)).not.toThrow();
+    expect(() => service.markResolved(9999)).not.toThrow();
+    expect(service.alerts()).toBe(before);
     expect(service.alerts().length).toBe(lengthBefore);
+  });
+
+  it('should leave sibling alerts untouched during a transition', () => {
+    service.markResolved(1);
+
+    expect(service.alerts().filter((alert) => alert.status === 'Open').length).toBe(
+      DAILY_ALERTS.length - 1,
+    );
   });
 
   it('should reject empty or whitespace note text', () => {
@@ -103,7 +148,8 @@ describe('AlertsService', () => {
   });
 
   it('should reset all state', () => {
-    service.markReviewed(1);
+    service.startProgress(1);
+    service.markResolved(2);
     service.addNote(1, 'P-105328', 'note');
     service.addTestRequest(2, 'P-104582', ['Lipid panel']);
 
@@ -111,6 +157,6 @@ describe('AlertsService', () => {
 
     expect(service.notes().length).toBe(0);
     expect(service.testRequests().length).toBe(0);
-    expect(service.alerts().every((alert) => alert.status === 'New')).toBe(true);
+    expect(service.alerts().every((alert) => alert.status === 'Open')).toBe(true);
   });
 });

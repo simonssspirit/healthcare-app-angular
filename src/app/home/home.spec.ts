@@ -67,28 +67,48 @@ describe('HomeComponent', () => {
     expect(component.hasSuggestedNextAction({ ...alert, suggestedNextAction: '   ' })).toBe(false);
   });
 
-  it('should mark the selected alert as reviewed', () => {
+  it('should move the selected alert to In Progress from the dialog', () => {
     const { component } = createComponent();
     const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
 
     component.openAlertDialog(alert1);
-    component.reviewSelectedAlert();
+    component.startSelectedAlert();
 
-    expect(component.selectedAlert()!.status).toBe('Reviewed');
+    expect(component.selectedAlert()!.status).toBe('In Progress');
     expect(component.alertActionFeedback).toBeTruthy();
   });
 
-  it('should stay consistent when review is invoked twice', () => {
+  it('should resolve the selected alert from the dialog', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openAlertDialog(alert1);
+    component.resolveSelectedAlert();
+
+    expect(component.selectedAlert()!.status).toBe('Resolved');
+    expect(component.alertActionFeedback).toBeTruthy();
+  });
+
+  it('should stay consistent when resolve is invoked twice', () => {
     const { component } = createComponent();
     const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
 
     component.openAlertDialog(alert1);
 
     expect(() => {
-      component.reviewSelectedAlert();
-      component.reviewSelectedAlert();
+      component.resolveSelectedAlert();
+      component.resolveSelectedAlert();
     }).not.toThrow();
-    expect(component.selectedAlert()!.status).toBe('Reviewed');
+    expect(component.selectedAlert()!.status).toBe('Resolved');
+  });
+
+  it('should not change status merely by opening the alert dialog', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openAlertDialog(alert1);
+
+    expect(component.selectedAlert()!.status).toBe('Open');
   });
 
   it('should clear selection and feedback on close', () => {
@@ -96,7 +116,7 @@ describe('HomeComponent', () => {
     const alert1 = component.dailyAlerts()[0];
 
     component.openAlertDialog(alert1);
-    component.reviewSelectedAlert();
+    component.resolveSelectedAlert();
     component.closeAlertDialog();
 
     expect(component.alertDialogOpened).toBe(false);
@@ -342,13 +362,13 @@ describe('HomeComponent', () => {
     expect(buttons.length).toBe(component.dailyAlerts().length);
   });
 
-  it('should render three CTAs per alert row', async () => {
+  it('should render four CTAs per alert row', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
     const ctas = fixture.nativeElement.querySelectorAll('.alert-item .alert-actions button');
-    expect(ctas.length).toBe(component.dailyAlerts().length * 3);
+    expect(ctas.length).toBe(component.dailyAlerts().length * 4);
   });
 
   it('should not nest interactive controls inside the open button', async () => {
@@ -399,75 +419,106 @@ describe('HomeComponent', () => {
     expect(component.alertDialogOpened).toBe(true);
   });
 
-  it('should mark an alert reviewed from the list CTA', async () => {
+  it('should start an alert from the list CTA', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const firstRowReviewButton = fixture.nativeElement.querySelector(
+    const startButton = fixture.nativeElement.querySelector(
       '.alert-item .alert-actions button',
     ) as HTMLButtonElement;
-    firstRowReviewButton.click();
+    startButton.click();
     fixture.detectChanges();
 
-    expect(component.dailyAlerts()[0].status).toBe('Reviewed');
+    expect(component.dailyAlerts()[0].status).toBe('In Progress');
   });
 
-  it('should show a reviewed badge in the list', async () => {
+  it('should resolve an alert from the list CTA', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    component.markAlertReviewed(component.dailyAlerts()[0]);
+    const resolveButton = fixture.nativeElement.querySelectorAll(
+      '.alert-item .alert-actions button',
+    )[1] as HTMLButtonElement;
+    resolveButton.click();
     fixture.detectChanges();
-    await fixture.whenStable();
 
-    const badges = fixture.nativeElement.querySelectorAll('.alert-status-badge');
-    expect(badges.length).toBe(1);
-    expect(badges[0].textContent.trim()).toBe('Reviewed');
+    expect(component.dailyAlerts()[0].status).toBe('Resolved');
   });
 
-  it('should announce reviewed status in the open button aria-label for assistive tech', async () => {
+  it('should render a status chip for every alert in the list', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    component.markAlertReviewed(component.dailyAlerts()[0]);
+    const chips = fixture.nativeElement.querySelectorAll('.alert-item .alert-status-chip');
+    expect(chips.length).toBe(component.dailyAlerts().length);
+    expect(chips[0].textContent.trim()).toContain('Open');
+  });
+
+  it('should update the list chip label as the case progresses', async () => {
+    const { fixture, component } = createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.startAlertProgress(component.dailyAlerts()[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    let firstChip = fixture.nativeElement.querySelector('.alert-item .alert-status-chip');
+    expect(firstChip.textContent.trim()).toContain('In Progress');
+
+    component.resolveAlert(component.dailyAlerts()[0]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    firstChip = fixture.nativeElement.querySelector('.alert-item .alert-status-chip');
+    expect(firstChip.textContent.trim()).toContain('Resolved');
+  });
+
+  it('should announce the case status in the open button aria-label for assistive tech', async () => {
+    const { fixture, component } = createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.resolveAlert(component.dailyAlerts()[0]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     const firstOpenButton = fixture.nativeElement.querySelector(
       '.alert-open-button',
     ) as HTMLButtonElement;
-    expect(firstOpenButton.getAttribute('aria-label')).toMatch(/^Reviewed\. /);
+    expect(firstOpenButton.getAttribute('aria-label')).toMatch(/^Resolved\. /);
   });
 
-  it('should keep the reviewed alert in the list', async () => {
+  it('should keep the resolved alert in the list', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
     const lengthBefore = component.dailyAlerts().length;
 
-    component.markAlertReviewed(component.dailyAlerts()[0]);
+    component.resolveAlert(component.dailyAlerts()[0]);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.dailyAlerts().length).toBe(lengthBefore);
   });
 
-  it('should disable the Review CTA for an already reviewed alert', async () => {
+  it('should disable both CTAs for an already resolved alert', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
-    component.markAlertReviewed(component.dailyAlerts()[0]);
+    component.resolveAlert(component.dailyAlerts()[0]);
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const firstRowReviewButton = fixture.nativeElement.querySelector(
+    const ctas = fixture.nativeElement.querySelectorAll(
       '.alert-item .alert-actions button',
-    ) as HTMLButtonElement;
-    expect(firstRowReviewButton.disabled).toBe(true);
+    ) as NodeListOf<HTMLButtonElement>;
+    expect(ctas[0].disabled).toBe(true);
+    expect(ctas[1].disabled).toBe(true);
   });
 
   it('should open the note dialog from the list CTA without opening the details dialog', async () => {
@@ -478,7 +529,7 @@ describe('HomeComponent', () => {
     const rowCtas = fixture.nativeElement.querySelectorAll(
       '.alert-item .alert-actions button',
     ) as NodeListOf<HTMLButtonElement>;
-    rowCtas[1].click();
+    rowCtas[2].click();
     fixture.detectChanges();
 
     expect(component.clinicalNoteDialogOpened).toBe(true);
