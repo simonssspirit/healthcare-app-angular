@@ -1,3 +1,26 @@
+export type AlertStatus = 'Open' | 'In Progress' | 'Resolved';
+
+/** The default state of every newly seeded patient case. */
+export const DEFAULT_ALERT_STATUS: AlertStatus = 'Open';
+
+/** All case states, in lifecycle order. */
+export const ALERT_STATUSES: readonly AlertStatus[] = ['Open', 'In Progress', 'Resolved'];
+
+/**
+ * Single source of truth for legal case-state transitions.
+ * `Resolved` is terminal in this iteration; reopening is not supported.
+ */
+export const ALERT_STATUS_TRANSITIONS: Readonly<Record<AlertStatus, readonly AlertStatus[]>> = {
+  Open: ['In Progress', 'Resolved'],
+  'In Progress': ['Resolved'],
+  Resolved: [],
+};
+
+/** Returns true when moving a case from `from` to `to` is a legal transition. */
+export function canTransitionAlertStatus(from: AlertStatus, to: AlertStatus): boolean {
+  return ALERT_STATUS_TRANSITIONS[from].includes(to);
+}
+
 export interface DailyAlert {
   id: number;
   title: string;
@@ -10,6 +33,24 @@ export interface DailyAlert {
   priority: string;
   details: string;
   recommendations: string[];
+  status: AlertStatus;
+  suggestedNextAction?: string;
+}
+
+export interface AlertNoteRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  text: string;
+  createdAt: Date;
+}
+
+export interface AlertTestRequestRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  testNames: string[];
+  createdAt: Date;
 }
 
 export interface HomePatient {
@@ -43,6 +84,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Schedule follow-up appointment within 48 hours',
       'Consider antibiotic treatment if infection is suspected',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Order an inflammatory markers panel and review for infection within 24 hours.',
   },
   {
     id: 2,
@@ -63,6 +107,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider adjusting or adding medication',
       'Advise lifestyle modifications (diet, exercise, stress management)',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Recheck blood pressure today and review the current antihypertensive dosage.',
   },
   {
     id: 3,
@@ -83,6 +130,8 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider starting metformin if HbA1c confirms progression',
       'Schedule follow-up in 2 weeks to monitor glucose levels',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Confirm the result with a repeat sample before adjusting therapy.',
   },
   {
     id: 4,
@@ -103,6 +152,8 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Recommend regular aerobic exercise program',
       'Recheck lipid panel in 6-8 weeks after treatment initiation',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Reassess fluid balance and order a repeat renal panel.',
   },
   {
     id: 5,
@@ -122,6 +173,8 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider iron supplementation if iron-deficiency confirmed',
       'Schedule transfusion evaluation if levels drop below 8 g/dL',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Review current medication list for interactions and document the plan.',
   },
   {
     id: 6,
@@ -141,6 +194,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Ensure adequate hydration',
       'Consult nephrology if levels do not improve within 48 hours',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Repeat the measurement and escalate to the on-call clinician if unchanged.',
   },
   {
     id: 7,
@@ -161,6 +217,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Cardiology consult urgently',
       'Prepare for possible stress test or angiography',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Perform a repeat ECG now and order troponin; request an urgent cardiology consult.',
   },
   {
     id: 8,
@@ -180,6 +239,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Order repeat electrolyte panel in 24 hours',
       'Advise high-potassium diet (bananas, leafy greens)',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Start oral potassium supplementation and order a repeat electrolyte panel in 24 hours.',
   },
 ];
 
