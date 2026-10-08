@@ -457,6 +457,15 @@ describe('HomeComponent', () => {
     expect(chips[0].textContent.trim()).toContain('Open');
   });
 
+  it('should expose an aria-label on the list status chip matching its state', async () => {
+    const { fixture } = createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const firstChip = fixture.nativeElement.querySelector('.alert-item .alert-status-chip');
+    expect(firstChip.getAttribute('aria-label')).toBe('Case status: Open');
+  });
+
   it('should update the list chip label as the case progresses', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
