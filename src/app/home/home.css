@@ -918,10 +918,6 @@
   opacity: 1;
 }
 
-.alert-item--in-progress {
-  opacity: 1;
-}
-
 .alert-item--resolved {
   opacity: 0.85;
 }

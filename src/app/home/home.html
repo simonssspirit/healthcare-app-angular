@@ -252,6 +252,7 @@
                 size="small"
                 [themeColor]="getAlertStatusColor(alert.status)"
                 [label]="alert.status"
+                [attr.aria-label]="'Case status: ' + alert.status"
               ></kendo-chip>
             </div>
 

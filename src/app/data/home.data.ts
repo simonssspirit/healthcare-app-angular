@@ -84,7 +84,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Schedule follow-up appointment within 48 hours',
       'Consider antibiotic treatment if infection is suspected',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction:
       'Order an inflammatory markers panel and review for infection within 24 hours.',
   },
@@ -107,7 +107,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider adjusting or adding medication',
       'Advise lifestyle modifications (diet, exercise, stress management)',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction:
       'Recheck blood pressure today and review the current antihypertensive dosage.',
   },
@@ -130,7 +130,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider starting metformin if HbA1c confirms progression',
       'Schedule follow-up in 2 weeks to monitor glucose levels',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction: 'Confirm the result with a repeat sample before adjusting therapy.',
   },
   {
@@ -152,7 +152,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Recommend regular aerobic exercise program',
       'Recheck lipid panel in 6-8 weeks after treatment initiation',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction: 'Reassess fluid balance and order a repeat renal panel.',
   },
   {
@@ -173,7 +173,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider iron supplementation if iron-deficiency confirmed',
       'Schedule transfusion evaluation if levels drop below 8 g/dL',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction: 'Review current medication list for interactions and document the plan.',
   },
   {
@@ -194,7 +194,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Ensure adequate hydration',
       'Consult nephrology if levels do not improve within 48 hours',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction:
       'Repeat the measurement and escalate to the on-call clinician if unchanged.',
   },
@@ -217,7 +217,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Cardiology consult urgently',
       'Prepare for possible stress test or angiography',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction:
       'Perform a repeat ECG now and order troponin; request an urgent cardiology consult.',
   },
@@ -239,7 +239,7 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Order repeat electrolyte panel in 24 hours',
       'Advise high-potassium diet (bananas, leafy greens)',
     ],
-    status: 'Open',
+    status: DEFAULT_ALERT_STATUS,
     suggestedNextAction:
       'Start oral potassium supplementation and order a repeat electrolyte panel in 24 hours.',
   },
