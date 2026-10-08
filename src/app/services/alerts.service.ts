@@ -2,9 +2,11 @@ import { Injectable, signal } from '@angular/core';
 import { guid } from '@progress/kendo-angular-common';
 import {
   AlertNoteRecord,
+  AlertStatus,
   AlertTestRequestRecord,
   DAILY_ALERTS,
   DailyAlert,
+  canTransitionAlertStatus,
 } from '../data/home.data';
 
 /** Single source of truth for the "blank text" rule shared by callers and this service. */
@@ -26,16 +28,31 @@ export class AlertsService {
     return this.alertsSignal().find((alert) => alert.id === alertId);
   }
 
-  public markReviewed(alertId: number): void {
+  /** Moves an Open case to In Progress. No-op for any other current state. */
+  public startProgress(alertId: number): void {
+    this.transitionTo(alertId, 'In Progress');
+  }
+
+  /** Moves an Open or In Progress case to Resolved. No-op once already Resolved. */
+  public markResolved(alertId: number): void {
+    this.transitionTo(alertId, 'Resolved');
+  }
+
+  /**
+   * Applies a case-state transition if, and only if, it is legal for the
+   * alert's current state. Unknown ids and illegal transitions are silent
+   * no-ops that leave the alerts signal reference untouched.
+   */
+  private transitionTo(alertId: number, next: AlertStatus): void {
     const current = this.alertsSignal();
     const target = current.find((alert) => alert.id === alertId);
 
-    if (!target || target.status === 'Reviewed') {
+    if (!target || !canTransitionAlertStatus(target.status, next)) {
       return;
     }
 
     this.alertsSignal.set(
-      current.map((alert) => (alert.id === alertId ? { ...alert, status: 'Reviewed' } : alert)),
+      current.map((alert) => (alert.id === alertId ? { ...alert, status: next } : alert)),
     );
   }
 

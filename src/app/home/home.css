@@ -388,16 +388,22 @@
   filter: drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.04)) drop-shadow(0px 2px 6px rgba(0, 0, 0, 0.06));
 }
 
-.alert-open-button > div {
+.alert-row {
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  gap: 16px;
+  gap: 12px;
   background: #f1f5f9;
   border-width: 1px 1px 1px 0;
   border-style: solid;
   border-color: rgba(23, 56, 99, 0.08);
   border-radius: 0 12px 12px 0;
+}
+
+.alert-open-button > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .alert-content {
@@ -888,7 +894,8 @@
   all: unset;
   display: block;
   box-sizing: border-box;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   cursor: pointer;
 }
 
@@ -911,20 +918,23 @@
   opacity: 1;
 }
 
-.alert-item--reviewed {
+.alert-item--in-progress {
+  opacity: 1;
+}
+
+.alert-item--resolved {
   opacity: 0.85;
 }
 
-.alert-status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 6px;
-  border-radius: 10px;
-  font-size: 11px;
-  line-height: 18px;
-  font-weight: 600;
-  color: var(--kendo-color-success, #37b400);
-  border: 1px solid var(--kendo-color-success, #37b400);
+.alert-status-chip {
+  flex: 0 0 auto;
+}
+
+.alert-case-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 @media (max-width: 600px), (hover: none) {

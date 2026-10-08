@@ -45,7 +45,15 @@ import {
   xIcon,
 } from '@progress/kendo-svg-icons';
 import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
-import { HOME_PATIENTS, LAB_TESTS, DailyAlert, HomePatient, LabTest } from '../data/home.data';
+import {
+  HOME_PATIENTS,
+  LAB_TESTS,
+  AlertStatus,
+  DailyAlert,
+  HomePatient,
+  LabTest,
+  canTransitionAlertStatus,
+} from '../data/home.data';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
 import { AlertsService, isBlankText } from '../services/alerts.service';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
@@ -105,6 +113,15 @@ export class HomeComponent implements OnInit, OnDestroy {
       Cancelled: 'error',
     };
     return colorMap[status] ?? 'base';
+  }
+
+  public getAlertStatusColor(status: AlertStatus): ChipThemeColor {
+    const colorMap: Record<AlertStatus, ChipThemeColor> = {
+      Open: 'info',
+      'In Progress': 'warning',
+      Resolved: 'success',
+    };
+    return colorMap[status];
   }
 
   public fileDataIcon: SVGIcon = {
@@ -507,23 +524,64 @@ Dr. Carter`;
     this.alertActionFeedback = '';
   }
 
-  public markAlertReviewed(alert: DailyAlert): void {
-    this.alertsService.markReviewed(alert.id);
+  public isAlertInProgress(alert: DailyAlert): boolean {
+    return alert.status === 'In Progress';
   }
 
-  public reviewSelectedAlert(): void {
+  public isAlertResolved(alert: DailyAlert): boolean {
+    return alert.status === 'Resolved';
+  }
+
+  public canStartAlert(alert: DailyAlert): boolean {
+    return canTransitionAlertStatus(alert.status, 'In Progress');
+  }
+
+  public canResolveAlert(alert: DailyAlert): boolean {
+    return canTransitionAlertStatus(alert.status, 'Resolved');
+  }
+
+  /** Accessible name for the per-alert "start" control, reflecting current state. */
+  public startAlertAriaLabel(alert: DailyAlert): string {
+    return this.canStartAlert(alert)
+      ? `Start work on ${alert.title}. Current status ${alert.status}.`
+      : `${alert.title} is already ${alert.status}. Cannot start work.`;
+  }
+
+  /** Accessible name for the per-alert "resolve" control, reflecting current state. */
+  public resolveAlertAriaLabel(alert: DailyAlert): string {
+    return this.canResolveAlert(alert)
+      ? `Resolve ${alert.title}. Current status ${alert.status}.`
+      : `${alert.title} is already Resolved.`;
+  }
+
+  public startAlertProgress(alert: DailyAlert): void {
+    this.alertsService.startProgress(alert.id);
+  }
+
+  public resolveAlert(alert: DailyAlert): void {
+    this.alertsService.markResolved(alert.id);
+  }
+
+  public startSelectedAlert(): void {
     const alert = this.selectedAlert();
 
     if (!alert) {
       return;
     }
 
-    this.alertsService.markReviewed(alert.id);
-    this.alertActionFeedback = `Alert marked as reviewed for ${alert.patient}.`;
+    this.alertsService.startProgress(alert.id);
+    this.alertActionFeedback = `Case marked as in progress for ${alert.patient}.`;
   }
 
-  public isAlertReviewed(alert: DailyAlert): boolean {
-    return alert.status === 'Reviewed';
+  public resolveSelectedAlert(): void {
+    const alert = this.selectedAlert();
+
+    if (!alert) {
+      return;
+    }
+
+    this.alertsService.markResolved(alert.id);
+    this.alertActionFeedback = `Case marked as resolved for ${alert.patient}.`;
   }
 
   public hasSuggestedNextAction(alert: DailyAlert | null): boolean {

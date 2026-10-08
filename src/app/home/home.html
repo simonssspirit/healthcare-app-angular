@@ -224,40 +224,57 @@
       <!-- Daily Alerts List -->
       <div class="daily-alerts">
         @for (alert of dailyAlerts(); track alert.id) {
-          <div class="alert-item" [class.alert-item--reviewed]="isAlertReviewed(alert)">
-            <button
-              type="button"
-              class="alert-open-button"
-              (click)="openAlertDialog(alert)"
-              [attr.aria-label]="
-                (isAlertReviewed(alert) ? 'Reviewed. ' : '') + 'View details for ' + alert.title
-              "
-            >
-              <div class="alert-content">
-                <span class="alert-title">{{ alert.title }}</span>
-                <div class="alert-bottom">
-                  <span class="alert-time">{{ alert.time }}</span>
-                  @if (isAlertReviewed(alert)) {
-                    <span class="alert-status-badge">Reviewed</span>
-                  }
-                  <span class="alert-link">
-                    <span class="link-text">View</span>
-                    <kendo-svgicon [icon]="chevronRightIcon"></kendo-svgicon>
-                  </span>
+          <div
+            class="alert-item"
+            [class.alert-item--in-progress]="isAlertInProgress(alert)"
+            [class.alert-item--resolved]="isAlertResolved(alert)"
+          >
+            <div class="alert-row">
+              <button
+                type="button"
+                class="alert-open-button"
+                (click)="openAlertDialog(alert)"
+                [attr.aria-label]="alert.status + '. View details for ' + alert.title"
+              >
+                <div class="alert-content">
+                  <span class="alert-title">{{ alert.title }}</span>
+                  <div class="alert-bottom">
+                    <span class="alert-time">{{ alert.time }}</span>
+                    <span class="alert-link">
+                      <span class="link-text">View</span>
+                      <kendo-svgicon [icon]="chevronRightIcon"></kendo-svgicon>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              <kendo-chip
+                class="alert-status-chip"
+                size="small"
+                [themeColor]="getAlertStatusColor(alert.status)"
+                [label]="alert.status"
+              ></kendo-chip>
+            </div>
 
             <div class="alert-actions">
               <button
                 kendoButton
                 fillMode="flat"
                 size="small"
-                [disabled]="isAlertReviewed(alert)"
-                (click)="markAlertReviewed(alert)"
-                [attr.aria-label]="'Mark ' + alert.title + ' as reviewed'"
+                [disabled]="!canStartAlert(alert)"
+                (click)="startAlertProgress(alert)"
+                [attr.aria-label]="startAlertAriaLabel(alert)"
               >
-                Review
+                Start
+              </button>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                [disabled]="!canResolveAlert(alert)"
+                (click)="resolveAlert(alert)"
+                [attr.aria-label]="resolveAlertAriaLabel(alert)"
+              >
+                Resolve
               </button>
               <button
                 kendoButton
@@ -498,6 +515,17 @@
     </kendo-dialog-titlebar>
 
     <div class="dialog-content">
+      <!-- Case Status -->
+      <div class="alert-case-status">
+        <h3 class="field-label" id="alert-case-status-label">Case Status</h3>
+        <kendo-chip
+          class="alert-status-chip"
+          [themeColor]="getAlertStatusColor(selectedAlert.status)"
+          [label]="selectedAlert.status"
+          [attr.aria-label]="'Case status: ' + selectedAlert.status"
+        ></kendo-chip>
+      </div>
+
       <!-- Patient Information -->
       <div>
         <h3 class="field-label">Patient Information</h3>
@@ -589,12 +617,20 @@
       </button>
       <button
         kendoButton
-        themeColor="primary"
-        (click)="reviewSelectedAlert()"
-        [disabled]="isAlertReviewed(selectedAlert)"
-        [attr.aria-label]="'Mark alert as reviewed for ' + selectedAlert.patient"
+        (click)="startSelectedAlert()"
+        [disabled]="!canStartAlert(selectedAlert)"
+        [attr.aria-label]="startAlertAriaLabel(selectedAlert)"
       >
-        {{ isAlertReviewed(selectedAlert) ? 'Reviewed' : 'Review' }}
+        Start
+      </button>
+      <button
+        kendoButton
+        themeColor="primary"
+        (click)="resolveSelectedAlert()"
+        [disabled]="!canResolveAlert(selectedAlert)"
+        [attr.aria-label]="resolveAlertAriaLabel(selectedAlert)"
+      >
+        {{ isAlertResolved(selectedAlert) ? 'Resolved' : 'Resolve' }}
       </button>
     </kendo-dialog-actions>
   </kendo-dialog>
