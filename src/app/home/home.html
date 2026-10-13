@@ -295,6 +295,27 @@
               >
                 Request test
               </button>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                themeColor="primary"
+                (click)="openPatientFromAlert(alert)"
+                [attr.aria-label]="'Open patient profile for ' + alert.patient + ' from ' + alert.title"
+              >
+                Open patient
+              </button>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                themeColor="primary"
+                [disabled]="!canScheduleFollowUp(alert)"
+                (click)="openFollowUpDialogForAlert(alert)"
+                [attr.aria-label]="'Schedule follow-up for ' + alert.patient + '. Current status ' + alert.status + '.'"
+              >
+                Schedule follow-up
+              </button>
             </div>
           </div>
         }
@@ -457,6 +478,85 @@
   </kendo-dialog>
 }
 
+<!-- Follow-up Scheduling Dialog -->
+@if (followUpDialogOpened) {
+  <kendo-dialog
+    [width]="dlgW(560)"
+    [height]="dlgH(520)"
+    (close)="closeFollowUpDialog()"
+    class="follow-up-dialog"
+  >
+    <kendo-dialog-titlebar>
+      <div class="dialog-title">
+        {{
+          alertFollowUpContext
+            ? 'Schedule Follow-up - ' + alertFollowUpContext.title
+            : 'Schedule Follow-up'
+        }}
+      </div>
+    </kendo-dialog-titlebar>
+
+    <div class="dialog-content">
+      <div class="form-field">
+        <span class="field-label">Patient</span>
+        <p class="details-text">
+          {{ followUpPatient.name }} ({{ followUpPatient.patientId }})
+          @if (alertFollowUpContext) {
+            &ndash; {{ alertFollowUpContext.condition }}
+          }
+        </p>
+      </div>
+
+      <div class="form-field">
+        <kendo-label text="Date" labelCssClass="field-label">
+          <kendo-datepicker [(ngModel)]="followUpDate" placeholder="Select a date">
+          </kendo-datepicker>
+        </kendo-label>
+      </div>
+
+      <div class="form-field">
+        <kendo-label text="Time" labelCssClass="field-label">
+          <kendo-timepicker [(ngModel)]="followUpTime" placeholder="Select a time">
+          </kendo-timepicker>
+        </kendo-label>
+      </div>
+
+      <div class="form-field">
+        <kendo-label text="Appointment type" labelCssClass="field-label">
+          <kendo-dropdownlist
+            [data]="followUpTypes"
+            [(ngModel)]="followUpType"
+            [valuePrimitive]="true"
+            defaultItem="Select appointment type"
+            [style.width.px]="250"
+            adaptiveMode="auto"
+          >
+          </kendo-dropdownlist>
+        </kendo-label>
+      </div>
+
+      @if (followUpError) {
+        <p class="field-error" role="alert">{{ followUpError }}</p>
+      }
+    </div>
+
+    <kendo-dialog-actions layout="end">
+      <button kendoButton (click)="closeFollowUpDialog()" aria-label="Cancel follow-up scheduling">
+        Cancel
+      </button>
+      <button
+        kendoButton
+        themeColor="primary"
+        [disabled]="isSchedulingFollowUp"
+        (click)="saveFollowUp()"
+        aria-label="Confirm follow-up appointment"
+      >
+        Schedule
+      </button>
+    </kendo-dialog-actions>
+  </kendo-dialog>
+}
+
 <!-- Message Nurse Dialog -->
 @if (messageNurseDialogOpened) {
   <kendo-dialog
@@ -596,10 +696,33 @@
       @if (alertActionFeedback) {
         <p class="alert-action-feedback" role="status">{{ alertActionFeedback }}</p>
       }
+
+      @if (followUpSummaryFor(selectedAlert); as followUp) {
+        <p class="alert-follow-up-summary alert-action-feedback" role="status">
+          Follow-up scheduled: {{ followUp }}
+        </p>
+      }
     </div>
 
     <kendo-dialog-actions layout="end">
       <button kendoButton (click)="closeAlertDialog()">Close</button>
+      <button
+        kendoButton
+        themeColor="primary"
+        (click)="openPatientFromAlert(selectedAlert)"
+        [attr.aria-label]="'Open patient profile for ' + selectedAlert.patient + ' from ' + selectedAlert.title"
+      >
+        Open patient
+      </button>
+      <button
+        kendoButton
+        themeColor="primary"
+        [disabled]="!canScheduleFollowUp(selectedAlert)"
+        (click)="openFollowUpDialogForAlert(selectedAlert)"
+        [attr.aria-label]="'Schedule follow-up for ' + selectedAlert.patient + '. Current status ' + selectedAlert.status + '.'"
+      >
+        Schedule follow-up
+      </button>
       <button
         kendoButton
         [svgIcon]="stickyNoteIcon"

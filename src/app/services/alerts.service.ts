@@ -1,6 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { guid } from '@progress/kendo-angular-common';
 import {
+  AlertFollowUpRecord,
   AlertNoteRecord,
   AlertStatus,
   AlertTestRequestRecord,
@@ -19,10 +20,12 @@ export class AlertsService {
   private readonly alertsSignal = signal<DailyAlert[]>(this.seedAlerts());
   private readonly noteRecordsSignal = signal<AlertNoteRecord[]>([]);
   private readonly testRequestRecordsSignal = signal<AlertTestRequestRecord[]>([]);
+  private readonly followUpRecordsSignal = signal<AlertFollowUpRecord[]>([]);
 
   public readonly alerts = this.alertsSignal.asReadonly();
   public readonly notes = this.noteRecordsSignal.asReadonly();
   public readonly testRequests = this.testRequestRecordsSignal.asReadonly();
+  public readonly followUps = this.followUpRecordsSignal.asReadonly();
 
   public getAlert(alertId: number): DailyAlert | undefined {
     return this.alertsSignal().find((alert) => alert.id === alertId);
@@ -104,10 +107,47 @@ export class AlertsService {
     return this.testRequestRecordsSignal().filter((request) => request.alertId === alertId);
   }
 
+  public addFollowUp(
+    alertId: number,
+    patientId: string,
+    appointmentId: number,
+    type: string,
+    scheduledFor: Date,
+  ): AlertFollowUpRecord | null {
+    if (isBlankText(type) || Number.isNaN(scheduledFor.getTime())) {
+      return null;
+    }
+
+    const record: AlertFollowUpRecord = {
+      id: guid(),
+      alertId,
+      patientId,
+      appointmentId,
+      type: type.trim(),
+      scheduledFor,
+      createdAt: new Date(),
+    };
+
+    this.followUpRecordsSignal.set([...this.followUpRecordsSignal(), record]);
+
+    return record;
+  }
+
+  public getFollowUpsForAlert(alertId: number): AlertFollowUpRecord[] {
+    return this.followUpRecordsSignal().filter((followUp) => followUp.alertId === alertId);
+  }
+
+  /** Most recently created follow-up for the alert, or undefined. */
+  public getLatestFollowUpForAlert(alertId: number): AlertFollowUpRecord | undefined {
+    const followUps = this.getFollowUpsForAlert(alertId);
+    return followUps[followUps.length - 1];
+  }
+
   public reset(): void {
     this.alertsSignal.set(this.seedAlerts());
     this.noteRecordsSignal.set([]);
     this.testRequestRecordsSignal.set([]);
+    this.followUpRecordsSignal.set([]);
   }
 
   private seedAlerts(): DailyAlert[] {

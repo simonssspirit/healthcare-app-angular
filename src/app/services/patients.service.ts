@@ -32,6 +32,15 @@ export class PatientsService {
   }
 
   /**
+   * Resolves the shared alert↔patient identifier (`DailyAlert.patientId` ===
+   * `PatientProfile.patientCode`). Single source of truth for this mapping.
+   */
+  public getPatientByCode(patientCode: string): PatientProfile | null {
+    const code = patientCode.trim();
+    return this.patientsData.find((patient) => patient.patientCode === code) || null;
+  }
+
+  /**
    * Update patient notes
    */
   public updatePatientNotes(id: number, notes: string): boolean {

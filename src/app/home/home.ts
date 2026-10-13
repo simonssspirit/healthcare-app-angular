@@ -22,6 +22,7 @@ import {
   SendMessageEvent,
   User,
 } from '@progress/kendo-angular-conversational-ui';
+import { KENDO_DATEINPUTS } from '@progress/kendo-angular-dateinputs';
 import { KENDO_DIALOG } from '@progress/kendo-angular-dialog';
 import { KENDO_DROPDOWNS } from '@progress/kendo-angular-dropdowns';
 import { KENDO_GRID } from '@progress/kendo-angular-grid';
@@ -48,6 +49,7 @@ import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
 import {
   HOME_PATIENTS,
   LAB_TESTS,
+  FOLLOW_UP_TYPES,
   AlertStatus,
   DailyAlert,
   HomePatient,
@@ -58,6 +60,7 @@ import { MarkdownPipe } from '../pipes/markdown.pipe';
 import { AlertsService, isBlankText } from '../services/alerts.service';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
+import { PatientsService } from '../services/patients.service';
 
 @Component({
   selector: 'app-home',
@@ -72,6 +75,7 @@ import { PageHeaderService } from '../services/page-header.service';
     KENDO_INDICATORS,
     KENDO_LAYOUT,
     KENDO_GRID,
+    KENDO_DATEINPUTS,
     KENDO_DIALOG,
     KENDO_DROPDOWNS,
     KENDO_INPUTS,
@@ -304,6 +308,19 @@ export class HomeComponent implements OnInit, OnDestroy {
   public labTestSearchQuery = '';
   public labTests: LabTest[] = [...LAB_TESTS];
 
+  // Follow-up Dialog data
+  public followUpDialogOpened = false;
+  public alertFollowUpContext: DailyAlert | null = null;
+  public followUpPatient: HomePatient = this.patients[0];
+  public followUpDate: Date | null = null;
+  public followUpTime: Date | null = null;
+  public followUpType: string | null = null;
+  public followUpTypes = [...FOLLOW_UP_TYPES];
+  public followUpError = '';
+  // See the comment above `isSavingClinicalNote`/`isSendingLabTestRequest` — same
+  // reentrancy-guard rationale applies here.
+  public isSchedulingFollowUp = false;
+
   // Message Nurse Dialog data
   public recipientEmail = 'oliviaparker@email.com';
   public messageSubject = "Check James Carter's Latest Lab Results";
@@ -317,6 +334,7 @@ Dr. Carter`;
   private pageHeaderService = inject(PageHeaderService);
   private router = inject(Router);
   private appointmentsService = inject(AppointmentsService);
+  private patientsService = inject(PatientsService);
 
   constructor() {
     const date = new Date();
@@ -401,6 +419,7 @@ Dr. Carter`;
 
   public openLabTestDialog(): void {
     this.alertTestContext = null;
+    this.labTestPatient = this.patients[0];
     this.labTestError = '';
     this.isSendingLabTestRequest = false;
     this.clearLabTestSelection();
@@ -582,6 +601,100 @@ Dr. Carter`;
 
     this.alertsService.markResolved(alert.id);
     this.alertActionFeedback = `Case marked as resolved for ${alert.patient}.`;
+  }
+
+  /** AC-001.1/.2/.3 — navigates to the alert's patient, or reports a missing record. */
+  public openPatientFromAlert(alert: DailyAlert): void {
+    const patient = this.patientsService.getPatientByCode(alert.patientId);
+
+    if (!patient) {
+      this.alertActionFeedback = `Patient record not found for ${alert.patientId}.`;
+      return;
+    }
+
+    this.alertActionFeedback = '';
+    this.alertDialogOpened = false;
+    this.navigateToPatientProfile(patient.id);
+  }
+
+  /** Follow-ups may be scheduled while a case is still actionable. */
+  public canScheduleFollowUp(alert: DailyAlert): boolean {
+    return alert.status !== 'Resolved';
+  }
+
+  public openFollowUpDialogForAlert(alert: DailyAlert): void {
+    this.alertFollowUpContext = alert;
+    this.followUpPatient = this.resolveHomePatient(alert);
+    this.followUpDate = null;
+    this.followUpTime = null;
+    this.followUpType = null;
+    this.followUpError = '';
+    this.isSchedulingFollowUp = false;
+    this.followUpDialogOpened = true;
+  }
+
+  public closeFollowUpDialog(): void {
+    this.followUpDialogOpened = false;
+    this.alertFollowUpContext = null;
+    this.followUpDate = null;
+    this.followUpTime = null;
+    this.followUpType = null;
+    this.followUpError = '';
+    this.isSchedulingFollowUp = false;
+  }
+
+  public saveFollowUp(): void {
+    if (this.isSchedulingFollowUp) {
+      return;
+    }
+
+    const alert = this.alertFollowUpContext;
+
+    if (!alert) {
+      return;
+    }
+
+    if (!this.followUpDate || !this.followUpTime || !this.followUpType) {
+      this.followUpError = 'Date, time and appointment type are required.';
+      return;
+    }
+
+    this.isSchedulingFollowUp = true;
+
+    const start = new Date(this.followUpDate);
+    start.setHours(this.followUpTime.getHours(), this.followUpTime.getMinutes(), 0, 0);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+
+    const appointment = this.appointmentsService.addAppointment({
+      title: alert.patient,
+      reason: this.followUpType,
+      start,
+      end,
+      description: `Follow-up for ${alert.condition}`,
+      patientCode: alert.patientId,
+      alertId: alert.id,
+    });
+
+    this.alertsService.addFollowUp(alert.id, alert.patientId, appointment.id, this.followUpType, start);
+    this.alertActionFeedback = `Follow-up scheduled for ${alert.patient} on ${this.formatFollowUpDate(start)}.`;
+
+    this.closeFollowUpDialog();
+  }
+
+  /** OQ-3 — "Follow-up scheduled for …" line shown on the case detail. */
+  public followUpSummaryFor(alert: DailyAlert): string {
+    const record = this.alertsService.getLatestFollowUpForAlert(alert.id);
+    return record ? `${record.type} on ${this.formatFollowUpDate(record.scheduledFor)}` : '';
+  }
+
+  private formatFollowUpDate(date: Date): string {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   }
 
   public hasSuggestedNextAction(alert: DailyAlert | null): boolean {

@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, OnInit, HostListener, signal, inject } from '@angular/core';
+import { Component, ViewEncapsulation, HostListener, signal, inject } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -45,7 +45,7 @@ import { DailyTask, INITIAL_TASKS } from '../data/schedule.data';
     KENDO_LABELS,
   ],
 })
-export class ScheduleComponent implements OnInit {
+export class ScheduleComponent {
   // Responsive dialog dimensions
   public isNarrowScreen = signal(window.innerWidth < 1000);
   public vw = signal(window.innerWidth);
@@ -77,7 +77,10 @@ export class ScheduleComponent implements OnInit {
 
   public selectedDate: Date;
   public taskSearch = '';
-  public events: SchedulerAppointment[] = [];
+
+  private appointmentsService = inject(AppointmentsService);
+
+  public events = this.appointmentsService.appointments;
 
   // Event Detail Dialog
   public eventDialogOpened = false;
@@ -117,15 +120,9 @@ export class ScheduleComponent implements OnInit {
 
   public tasks: DailyTask[] = [...INITIAL_TASKS];
 
-  private appointmentsService = inject(AppointmentsService);
-
   constructor() {
     // Initialize selected date to the current real date.
     this.selectedDate = new Date();
-  }
-
-  ngOnInit(): void {
-    this.events = this.appointmentsService.getSchedulerAppointments();
   }
 
   public get filteredTasks(): DailyTask[] {

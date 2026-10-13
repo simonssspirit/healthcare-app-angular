@@ -53,6 +53,23 @@ export interface AlertTestRequestRecord {
   createdAt: Date;
 }
 
+export const FOLLOW_UP_TYPES: readonly string[] = [
+  'Follow-up consultation',
+  'Lab review',
+  'Specialist referral',
+  'Telehealth check-in',
+];
+
+export interface AlertFollowUpRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  appointmentId: number;
+  type: string;
+  scheduledFor: Date;
+  createdAt: Date;
+}
+
 export interface HomePatient {
   id: number;
   name: string;
@@ -65,12 +82,17 @@ export interface LabTest {
   selected: boolean;
 }
 
+/**
+ * `patientId` MUST match a `patientCode` in `PATIENTS_DATA` (patients.data.ts).
+ * This is the single link between an alert and a patient profile; resolve it only
+ * through `PatientsService.getPatientByCode()`.
+ */
 export const DAILY_ALERTS: DailyAlert[] = [
   {
     id: 1,
-    title: 'CRP elevated - Sophia Martinez',
-    patient: 'Sophia Martinez',
-    patientId: 'P-105328',
+    title: 'CRP elevated - Sophia Bennett',
+    patient: 'Sophia Bennett',
+    patientId: 'P-104505',
     time: 'Now',
     condition: 'CRP Elevated',
     value: '12.5 mg/L',
@@ -90,9 +112,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 2,
-    title: 'Blood pressure high - James Carter',
-    patient: 'James Carter',
-    patientId: 'P-104582',
+    title: 'Blood pressure high - James Walker',
+    patient: 'James Walker',
+    patientId: 'P-104506',
     time: '2 min ago',
     condition: 'Blood Pressure High',
     value: '165/98 mmHg',
@@ -113,9 +135,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 3,
-    title: 'Glucose levels elevated - Daniel Rivera',
-    patient: 'Daniel Rivera',
-    patientId: 'P-103847',
+    title: 'Glucose levels elevated - Daniel Thompson',
+    patient: 'Daniel Thompson',
+    patientId: 'P-104502',
     time: '8 min ago',
     condition: 'Glucose Levels Elevated',
     value: '185 mg/dL',
@@ -135,9 +157,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 4,
-    title: 'High cholesterol detected - Ava Thompson',
-    patient: 'Ava Thompson',
-    patientId: 'P-106749',
+    title: 'High cholesterol detected - Ava Johnson',
+    patient: 'Ava Johnson',
+    patientId: 'P-104507',
     time: '15 min ago',
     condition: 'High Cholesterol',
     value: 'Total: 265 mg/dL, LDL: 175 mg/dL',
@@ -157,9 +179,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 5,
-    title: 'Low hemoglobin - Marcus Johnson',
-    patient: 'Marcus Johnson',
-    patientId: 'P-107312',
+    title: 'Low hemoglobin - James Wilson',
+    patient: 'James Wilson',
+    patientId: 'P-104508',
     time: '22 min ago',
     condition: 'Low Hemoglobin',
     value: '9.2 g/dL',
@@ -178,9 +200,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 6,
-    title: 'Elevated creatinine - Olivia Chen',
-    patient: 'Olivia Chen',
-    patientId: 'P-108456',
+    title: 'Elevated creatinine - Olivia Martinez',
+    patient: 'Olivia Martinez',
+    patientId: 'P-104501',
     time: '35 min ago',
     condition: 'Elevated Creatinine',
     value: '2.1 mg/dL',
@@ -200,9 +222,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 7,
-    title: 'Abnormal ECG - Robert Patel',
-    patient: 'Robert Patel',
-    patientId: 'P-109023',
+    title: 'Abnormal ECG - Michael Carter',
+    patient: 'Michael Carter',
+    patientId: 'P-104504',
     time: '52 min ago',
     condition: 'Abnormal ECG',
     value: 'ST-segment depression',
@@ -223,9 +245,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
   },
   {
     id: 8,
-    title: 'Potassium level low - Elena Vasquez',
-    patient: 'Elena Vasquez',
-    patientId: 'P-110198',
+    title: 'Potassium level low - Isabella Rossi',
+    patient: 'Isabella Rossi',
+    patientId: 'P-104503',
     time: '1 hr ago',
     condition: 'Hypokalemia',
     value: '2.9 mEq/L',

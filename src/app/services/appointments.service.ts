@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { getAppointmentsData, SchedulerAppointment, GridAppointment } from '../data/appointments.data';
 
 export type { SchedulerAppointment, GridAppointment };
@@ -7,30 +7,22 @@ export type { SchedulerAppointment, GridAppointment };
   providedIn: 'root',
 })
 export class AppointmentsService {
-  private cachedAppointments: SchedulerAppointment[] | null = null;
+  private readonly appointmentsSignal = signal<SchedulerAppointment[]>(getAppointmentsData());
 
-  // Initialize cache with hardcoded appointments
-  private ensureAppointmentsLoaded(): void {
-    if (!this.cachedAppointments) {
-      this.cachedAppointments = getAppointmentsData();
-    }
-  }
+  public readonly appointments = this.appointmentsSignal.asReadonly();
 
   // Public method to get all scheduler appointments
   public getSchedulerAppointments(): SchedulerAppointment[] {
-    this.ensureAppointmentsLoaded();
-    return this.cachedAppointments!;
+    return this.appointmentsSignal();
   }
 
   // Get today's appointments for the grid
   public getTodaysAppointments(): GridAppointment[] {
-    this.ensureAppointmentsLoaded();
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Filter today's appointments from cached data
-    const schedulerAppointments = this.cachedAppointments!.filter((apt) => {
+    // Filter today's appointments from the signal
+    const schedulerAppointments = this.appointmentsSignal().filter((apt) => {
       const aptDate = new Date(apt.start);
       aptDate.setHours(0, 0, 0, 0);
       return aptDate.getTime() === today.getTime();
@@ -48,6 +40,36 @@ export class AppointmentsService {
         room: apt.description,
       };
     });
+  }
+
+  /** Appends an appointment immutably and returns the created record. */
+  public addAppointment(input: {
+    title: string;
+    reason: string;
+    start: Date;
+    end: Date;
+    description?: string;
+    patientCode?: string;
+    alertId?: number;
+  }): SchedulerAppointment {
+    const current = this.appointmentsSignal();
+    const appointment: SchedulerAppointment = {
+      id: current.reduce((max, apt) => Math.max(max, apt.id), 0) + 1,
+      title: input.title,
+      reason: input.reason,
+      start: input.start,
+      end: input.end,
+      description: input.description ?? '',
+      striped: false,
+      cancelled: false,
+      status: 'Upcoming',
+      patientCode: input.patientCode,
+      alertId: input.alertId,
+    };
+
+    this.appointmentsSignal.set([...current, appointment]);
+
+    return appointment;
   }
 
   // Helper method
