@@ -1,11 +1,17 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { vi } from 'vitest';
 import { HomeComponent } from './home';
 import { AlertsService } from '../services/alerts.service';
+import { PatientsService } from '../services/patients.service';
+import { AppointmentsService } from '../services/appointments.service';
 
 describe('HomeComponent', () => {
   let alertsService: AlertsService;
+  let patientsService: PatientsService;
+  let appointmentsService: AppointmentsService;
+  let router: Router;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -14,6 +20,9 @@ describe('HomeComponent', () => {
     }).compileComponents();
 
     alertsService = TestBed.inject(AlertsService);
+    patientsService = TestBed.inject(PatientsService);
+    appointmentsService = TestBed.inject(AppointmentsService);
+    router = TestBed.inject(Router);
     alertsService.reset();
   });
 
@@ -362,13 +371,13 @@ describe('HomeComponent', () => {
     expect(buttons.length).toBe(component.dailyAlerts().length);
   });
 
-  it('should render four CTAs per alert row', async () => {
+  it('should render six CTAs per alert row', async () => {
     const { fixture, component } = createComponent();
     fixture.detectChanges();
     await fixture.whenStable();
 
     const ctas = fixture.nativeElement.querySelectorAll('.alert-item .alert-actions button');
-    expect(ctas.length).toBe(component.dailyAlerts().length * 4);
+    expect(ctas.length).toBe(component.dailyAlerts().length * 6);
   });
 
   it('should not nest interactive controls inside the open button', async () => {
@@ -544,4 +553,299 @@ describe('HomeComponent', () => {
     expect(component.clinicalNoteDialogOpened).toBe(true);
     expect(component.alertDialogOpened).toBe(false);
   });
+
+  // PHASE-5 — US-001 Open patient from an alert ------------------------
+
+  it('should navigate to the mapped patient profile', () => {
+    const { component } = createComponent();
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const patient = patientsService.getPatientByCode(alert1.patientId)!;
+
+    component.openPatientFromAlert(alert1);
+
+    expect(navigateSpy).toHaveBeenCalledWith(['/patients', patient.id]);
+  });
+
+  it('should resolve every seeded alert to a matching patient profile', () => {
+    const { component } = createComponent();
+
+    component.dailyAlerts().forEach((alert) => {
+      const patient = patientsService.getPatientByCode(alert.patientId);
+
+      expect(patient).not.toBeNull();
+      expect(patient!.name).toBe(alert.patient);
+    });
+  });
+
+  it('should report a missing patient record without navigating', () => {
+    const { component } = createComponent();
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const unresolvedAlert = { ...alert1, patientId: 'P-999999' };
+
+    expect(() => component.openPatientFromAlert(unresolvedAlert)).not.toThrow();
+    expect(component.alertActionFeedback).toContain('Patient record not found');
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not change the alert status when opening the patient', () => {
+    const { component } = createComponent();
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openPatientFromAlert(alert1);
+
+    expect(component.dailyAlerts().find((a) => a.id === 1)!.status).toBe('Open');
+  });
+
+  // PHASE-5 — US-002 Schedule a follow-up appointment ------------------
+
+  function fillFollowUpForm(
+    component: ReturnType<typeof createComponent>['component'],
+    overrides: Partial<{ date: Date | null; time: Date | null; type: string | null }> = {},
+  ): void {
+    component.followUpDate = 'date' in overrides ? overrides.date! : new Date(2026, 5, 1);
+    component.followUpTime = 'time' in overrides ? overrides.time! : new Date(2026, 5, 1, 10, 30);
+    component.followUpType = 'type' in overrides ? overrides.type! : component.followUpTypes[0];
+  }
+
+  it('should prefill the follow-up dialog from the alert and leave fields empty', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+
+    expect(component.followUpDialogOpened).toBe(true);
+    expect(component.alertFollowUpContext!.id).toBe(alert1.id);
+    expect(component.followUpPatient.patientId).toBe(alert1.patientId);
+    expect(component.followUpDate).toBeNull();
+    expect(component.followUpTime).toBeNull();
+    expect(component.followUpType).toBeNull();
+  });
+
+  it('should block scheduling when the date is missing', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component, { date: null });
+    component.saveFollowUp();
+
+    expect(component.followUpError).toBeTruthy();
+    expect(component.followUpDialogOpened).toBe(true);
+    expect(appointmentsService.appointments().some((a) => a.alertId === alert1.id)).toBe(false);
+  });
+
+  it('should block scheduling when the time is missing', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component, { time: null });
+    component.saveFollowUp();
+
+    expect(component.followUpError).toBeTruthy();
+    expect(component.followUpDialogOpened).toBe(true);
+  });
+
+  it('should block scheduling when the appointment type is missing', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component, { type: null });
+    component.saveFollowUp();
+
+    expect(component.followUpError).toBeTruthy();
+    expect(component.followUpDialogOpened).toBe(true);
+  });
+
+  it('should schedule a follow-up, create an appointment, and surface feedback', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const appointmentsBefore = appointmentsService.appointments().length;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    expect(appointmentsService.appointments().length).toBe(appointmentsBefore + 1);
+    expect(alertsService.getFollowUpsForAlert(alert1.id).length).toBe(1);
+    expect(component.alertActionFeedback).toContain('Follow-up scheduled');
+    expect(component.followUpDialogOpened).toBe(false);
+  });
+
+  it('should make the created appointment visible on the Schedule page calendar', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    const created = appointmentsService
+      .appointments()
+      .find((a) => a.alertId === alert1.id);
+
+    expect(created).toBeTruthy();
+    expect(created!.patientCode).toBe(alert1.patientId);
+  });
+
+  it('should not create a duplicate appointment on rapid double-click', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const appointmentsBefore = appointmentsService.appointments().length;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+    component.saveFollowUp();
+
+    expect(appointmentsService.appointments().length).toBe(appointmentsBefore + 1);
+    expect(alertsService.getFollowUpsForAlert(alert1.id).length).toBe(1);
+  });
+
+  it('should create nothing when the follow-up dialog is cancelled', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const appointmentsBefore = appointmentsService.appointments().length;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.closeFollowUpDialog();
+
+    expect(appointmentsService.appointments().length).toBe(appointmentsBefore);
+    expect(component.followUpDate).toBeNull();
+    expect(component.followUpTime).toBeNull();
+    expect(component.followUpType).toBeNull();
+  });
+
+  it('should show an empty follow-up summary before scheduling and a filled one after', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    expect(component.followUpSummaryFor(alert1)).toBe('');
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    expect(component.followUpSummaryFor(alert1)).toBeTruthy();
+  });
+
+  it('should disable scheduling a follow-up once the case is resolved', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.resolveAlert(alert1);
+
+    expect(component.canScheduleFollowUp(component.dailyAlerts().find((a) => a.id === 1)!)).toBe(
+      false,
+    );
+  });
+
+  // PHASE-5 — US-003/US-004 Resolve and end-to-end continuity ----------
+
+  it('should resolve an Open case', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.resolveAlert(alert1);
+
+    expect(component.dailyAlerts().find((a) => a.id === 1)!.status).toBe('Resolved');
+  });
+
+  it('should be idempotent when resolving twice', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    expect(() => {
+      component.resolveAlert(alert1);
+      component.resolveAlert(alert1);
+    }).not.toThrow();
+    expect(component.dailyAlerts().find((a) => a.id === 1)!.status).toBe('Resolved');
+  });
+
+  it('should allow resolving a case with no note, test request, or follow-up (OQ-1 ungated)', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.resolveAlert(alert1);
+
+    expect(component.dailyAlerts().find((a) => a.id === 1)!.status).toBe('Resolved');
+    expect(alertsService.getNotesForAlert(alert1.id).length).toBe(0);
+    expect(alertsService.getTestRequestsForAlert(alert1.id).length).toBe(0);
+    expect(alertsService.getFollowUpsForAlert(alert1.id).length).toBe(0);
+  });
+
+  it('should accept steps performed out of the suggested order', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    component.openClinicalNoteDialogForAlert(alert1);
+    component.clinicalNoteText = 'Reviewed after scheduling follow-up';
+    component.saveClinicalNote();
+
+    component.openLabTestDialogForAlert(alert1);
+    component.toggleLabTest(component.labTests[0]);
+    component.sendLabTestRequest();
+
+    expect(alertsService.getFollowUpsForAlert(alert1.id).length).toBe(1);
+    expect(alertsService.getNotesForAlert(alert1.id).length).toBe(1);
+    expect(alertsService.getTestRequestsForAlert(alert1.id).length).toBe(1);
+  });
+
+  it('should attribute every record to the same alert/patient through a full flow', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+
+    component.openClinicalNoteDialogForAlert(alert1);
+    component.clinicalNoteText = 'Clinical observation';
+    component.saveClinicalNote();
+
+    component.openLabTestDialogForAlert(alert1);
+    component.toggleLabTest(component.labTests[0]);
+    component.sendLabTestRequest();
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    component.resolveAlert(alert1);
+
+    expect(component.dailyAlerts().find((a) => a.id === 1)!.status).toBe('Resolved');
+    const notes = alertsService.getNotesForAlert(alert1.id);
+    const requests = alertsService.getTestRequestsForAlert(alert1.id);
+    const followUps = alertsService.getFollowUpsForAlert(alert1.id);
+
+    expect(notes.length).toBe(1);
+    expect(requests.length).toBe(1);
+    expect(followUps.length).toBe(1);
+    expect(notes[0].patientId).toBe(alert1.patientId);
+    expect(requests[0].patientId).toBe(alert1.patientId);
+    expect(followUps[0].patientId).toBe(alert1.patientId);
+  });
+
+  it('should keep follow-up records for two alerts of the same patient separate', () => {
+    const { component } = createComponent();
+    const alert1 = component.dailyAlerts().find((a) => a.id === 1)!;
+    const sharedPatientAlert = { ...component.dailyAlerts().find((a) => a.id === 2)!, patientId: alert1.patientId };
+
+    component.openFollowUpDialogForAlert(alert1);
+    fillFollowUpForm(component);
+    component.saveFollowUp();
+
+    component.openFollowUpDialogForAlert(sharedPatientAlert);
+    fillFollowUpForm(component, { type: component.followUpTypes[1] });
+    component.saveFollowUp();
+
+    expect(alertsService.getFollowUpsForAlert(alert1.id).length).toBe(1);
+    expect(alertsService.getFollowUpsForAlert(sharedPatientAlert.id).length).toBe(1);
+  });
 });
+

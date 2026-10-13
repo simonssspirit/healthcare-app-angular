@@ -40,4 +40,24 @@ describe('PatientsService', () => {
     expect(updated).toBe(true);
     expect(profile?.notes).toBe('Dummy test notes');
   });
+
+  it('should return the matching profile for a known patient code', () => {
+    const patient = service.getPatientByCode('P-104501');
+
+    expect(patient).not.toBeNull();
+    expect(patient!.id).toBe(1);
+  });
+
+  it('should return null for an unknown patient code', () => {
+    const patient = service.getPatientByCode('P-999999');
+
+    expect(patient).toBeNull();
+  });
+
+  it('should tolerate surrounding whitespace in the patient code', () => {
+    const patient = service.getPatientByCode(' P-104501 ');
+
+    expect(patient).not.toBeNull();
+    expect(patient!.id).toBe(1);
+  });
 });

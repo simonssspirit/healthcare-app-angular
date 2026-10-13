@@ -159,4 +159,50 @@ describe('AlertsService', () => {
     expect(service.testRequests().length).toBe(0);
     expect(service.alerts().every((alert) => alert.status === 'Open')).toBe(true);
   });
+
+  it('should return a follow-up record and append it to followUps()', () => {
+    const record = service.addFollowUp(1, 'P-104505', 10, 'Lab review', new Date(2026, 0, 15, 9, 0));
+
+    expect(record).toEqual(
+      expect.objectContaining({
+        alertId: 1,
+        patientId: 'P-104505',
+        appointmentId: 10,
+        type: 'Lab review',
+      }),
+    );
+    expect(service.followUps().length).toBe(1);
+  });
+
+  it('should reject a blank follow-up type and append nothing', () => {
+    const record = service.addFollowUp(1, 'P-104505', 10, '   ', new Date());
+
+    expect(record).toBeNull();
+    expect(service.followUps().length).toBe(0);
+  });
+
+  it('should reject an invalid scheduled date and append nothing', () => {
+    const record = service.addFollowUp(1, 'P-104505', 10, 'Lab review', new Date('invalid'));
+
+    expect(record).toBeNull();
+    expect(service.followUps().length).toBe(0);
+  });
+
+  it('should scope getFollowUpsForAlert by alertId and return the newest via getLatestFollowUpForAlert', () => {
+    service.addFollowUp(1, 'P-104505', 10, 'Lab review', new Date(2026, 0, 10));
+    service.addFollowUp(2, 'P-104506', 11, 'Telehealth check-in', new Date(2026, 0, 11));
+    service.addFollowUp(1, 'P-104505', 12, 'Specialist referral', new Date(2026, 0, 20));
+
+    expect(service.getFollowUpsForAlert(1).length).toBe(2);
+    expect(service.getFollowUpsForAlert(2).length).toBe(1);
+    expect(service.getLatestFollowUpForAlert(1)!.type).toBe('Specialist referral');
+  });
+
+  it('should clear follow-ups on reset', () => {
+    service.addFollowUp(1, 'P-104505', 10, 'Lab review', new Date());
+
+    service.reset();
+
+    expect(service.followUps().length).toBe(0);
+  });
 });
