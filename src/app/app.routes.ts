@@ -4,6 +4,7 @@ import { ScheduleComponent } from './schedule/schedule';
 import { PatientsComponent } from './patients/patients';
 import { PatientProfileComponent } from './patients/patient-profile/patient-profile';
 import { AnalyticsComponent } from './analytics/analytics';
+import { CasesComponent } from './cases/cases';
 
 export const routes: Routes = [
   { path: '', component: HomeComponent },
@@ -11,5 +12,6 @@ export const routes: Routes = [
   { path: 'patients', component: PatientsComponent },
   { path: 'patients/:id', component: PatientProfileComponent, runGuardsAndResolvers: 'always' },
   { path: 'analytics', component: AnalyticsComponent },
+  { path: 'cases', component: CasesComponent },
   { path: '**', redirectTo: '' },
 ];

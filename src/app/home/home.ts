@@ -7,6 +7,7 @@ import {
   ViewEncapsulation,
   HostListener,
   signal,
+  computed,
   inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -21,6 +22,7 @@ import {
   SendMessageEvent,
   User,
 } from '@progress/kendo-angular-conversational-ui';
+import { KENDO_DATEINPUTS } from '@progress/kendo-angular-dateinputs';
 import { KENDO_DIALOG } from '@progress/kendo-angular-dialog';
 import { KENDO_DROPDOWNS } from '@progress/kendo-angular-dropdowns';
 import { KENDO_GRID } from '@progress/kendo-angular-grid';
@@ -45,16 +47,20 @@ import {
 } from '@progress/kendo-svg-icons';
 import { PATIENTS_DATA, PatientProfile } from '../data/patients.data';
 import {
-  DAILY_ALERTS,
   HOME_PATIENTS,
   LAB_TESTS,
+  FOLLOW_UP_TYPES,
+  AlertStatus,
   DailyAlert,
   HomePatient,
   LabTest,
+  canTransitionAlertStatus,
 } from '../data/home.data';
 import { MarkdownPipe } from '../pipes/markdown.pipe';
+import { AlertsService, isBlankText } from '../services/alerts.service';
 import { AppointmentsService, GridAppointment } from '../services/appointments.service';
 import { PageHeaderService } from '../services/page-header.service';
+import { PatientsService } from '../services/patients.service';
 
 @Component({
   selector: 'app-home',
@@ -69,6 +75,7 @@ import { PageHeaderService } from '../services/page-header.service';
     KENDO_INDICATORS,
     KENDO_LAYOUT,
     KENDO_GRID,
+    KENDO_DATEINPUTS,
     KENDO_DIALOG,
     KENDO_DROPDOWNS,
     KENDO_INPUTS,
@@ -110,6 +117,15 @@ export class HomeComponent implements OnInit, OnDestroy {
       Cancelled: 'error',
     };
     return colorMap[status] ?? 'base';
+  }
+
+  public getAlertStatusColor(status: AlertStatus): ChipThemeColor {
+    const colorMap: Record<AlertStatus, ChipThemeColor> = {
+      Open: 'info',
+      'In Progress': 'warning',
+      Resolved: 'success',
+    };
+    return colorMap[status];
   }
 
   public fileDataIcon: SVGIcon = {
@@ -187,9 +203,28 @@ export class HomeComponent implements OnInit, OnDestroy {
   ];
 
   // Daily Alerts data
-  public dailyAlerts: DailyAlert[] = [...DAILY_ALERTS];
+  private alertsService = inject(AlertsService);
 
-  public selectedAlert: DailyAlert | null = null;
+  public dailyAlerts = this.alertsService.alerts;
+  public selectedAlertId = signal<number | null>(null);
+  public selectedAlert = computed<DailyAlert | null>(() => {
+    const id = this.selectedAlertId();
+    return id === null ? null : (this.alertsService.getAlert(id) ?? null);
+  });
+
+  public alertActionFeedback = '';
+
+  // Alert-originated action context
+  public alertNoteContext: DailyAlert | null = null;
+  public alertTestContext: DailyAlert | null = null;
+  public clinicalNoteError = '';
+  public labTestError = '';
+  // Reentrancy guards for the synchronous save/submit flow below. Today's save/submit calls are
+  // synchronous and always reset these flags before a dialog can be re-opened, so the actual
+  // double-submit protection comes from the dialog closing and its fields being cleared; these
+  // flags exist to keep that guarantee if persistence becomes asynchronous in the future.
+  public isSavingClinicalNote = false;
+  public isSendingLabTestRequest = false;
 
   // Reason for Visit data
   public reasonForVisit = {
@@ -273,6 +308,19 @@ export class HomeComponent implements OnInit, OnDestroy {
   public labTestSearchQuery = '';
   public labTests: LabTest[] = [...LAB_TESTS];
 
+  // Follow-up Dialog data
+  public followUpDialogOpened = false;
+  public alertFollowUpContext: DailyAlert | null = null;
+  public followUpPatient: HomePatient = this.patients[0];
+  public followUpDate: Date | null = null;
+  public followUpTime: Date | null = null;
+  public followUpType: string | null = null;
+  public followUpTypes = [...FOLLOW_UP_TYPES];
+  public followUpError = '';
+  // See the comment above `isSavingClinicalNote`/`isSendingLabTestRequest` — same
+  // reentrancy-guard rationale applies here.
+  public isSchedulingFollowUp = false;
+
   // Message Nurse Dialog data
   public recipientEmail = 'oliviaparker@email.com';
   public messageSubject = "Check James Carter's Latest Lab Results";
@@ -286,6 +334,7 @@ Dr. Carter`;
   private pageHeaderService = inject(PageHeaderService);
   private router = inject(Router);
   private appointmentsService = inject(AppointmentsService);
+  private patientsService = inject(PatientsService);
 
   constructor() {
     const date = new Date();
@@ -322,36 +371,104 @@ Dr. Carter`;
 
   // Dialog methods
   public openClinicalNoteDialog(): void {
+    this.alertNoteContext = null;
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
+    this.clinicalNoteDialogOpened = true;
+  }
+
+  public openClinicalNoteDialogForAlert(alert: DailyAlert): void {
+    this.alertNoteContext = alert;
+    this.selectedPatient = this.resolveHomePatient(alert);
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
     this.clinicalNoteDialogOpened = true;
   }
 
   public closeClinicalNoteDialog(): void {
     this.clinicalNoteDialogOpened = false;
+    this.alertNoteContext = null;
+    this.clinicalNoteText = '';
+    this.clinicalNoteError = '';
+    this.isSavingClinicalNote = false;
   }
 
   public saveClinicalNote(): void {
-    console.log('Saving clinical note for:', this.selectedPatient.name, this.clinicalNoteText);
-    // Here you would typically save to a service
+    if (this.isSavingClinicalNote) {
+      return;
+    }
+
+    if (isBlankText(this.clinicalNoteText)) {
+      this.clinicalNoteError = 'Note text is required.';
+      return;
+    }
+
+    this.isSavingClinicalNote = true;
+
+    const alert = this.alertNoteContext;
+
+    if (alert) {
+      this.alertsService.addNote(alert.id, alert.patientId, this.clinicalNoteText);
+      this.alertActionFeedback = `Note saved for ${alert.patient}.`;
+    }
+
     this.closeClinicalNoteDialog();
   }
 
   public openLabTestDialog(): void {
+    this.alertTestContext = null;
+    this.labTestPatient = this.patients[0];
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
+    this.labTestDialogOpened = true;
+  }
+
+  public openLabTestDialogForAlert(alert: DailyAlert): void {
+    this.alertTestContext = alert;
+    this.labTestPatient = this.resolveHomePatient(alert);
+    this.labTestSearchQuery = '';
+    this.clearLabTestSelection();
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
     this.labTestDialogOpened = true;
   }
 
   public closeLabTestDialog(): void {
     this.labTestDialogOpened = false;
+    this.alertTestContext = null;
+    this.labTestError = '';
+    this.isSendingLabTestRequest = false;
+    this.clearLabTestSelection();
   }
 
   public sendLabTestRequest(): void {
+    if (this.isSendingLabTestRequest) {
+      return;
+    }
+
     const selectedTests = this.labTests.filter((test) => test.selected);
-    console.log(
-      'Sending lab test request for:',
-      this.labTestPatient?.name,
-      'Tests:',
-      selectedTests,
-    );
-    // Here you would typically send via a service
+
+    if (selectedTests.length === 0) {
+      this.labTestError = 'Select at least one lab test.';
+      return;
+    }
+
+    this.isSendingLabTestRequest = true;
+
+    const alert = this.alertTestContext;
+
+    if (alert) {
+      this.alertsService.addTestRequest(
+        alert.id,
+        alert.patientId,
+        selectedTests.map((test) => test.name),
+      );
+      this.alertActionFeedback = `Test request sent for ${alert.patient}.`;
+    }
+
     this.closeLabTestDialog();
   }
 
@@ -365,7 +482,32 @@ Dr. Carter`;
   }
 
   public toggleLabTest(test: LabTest): void {
-    test.selected = !test.selected;
+    this.labTests = this.labTests.map((item) =>
+      item.id === test.id ? { ...item, selected: !item.selected } : item,
+    );
+    this.labTestError = '';
+  }
+
+  private clearLabTestSelection(): void {
+    this.labTests = this.labTests.map((test) => ({ ...test, selected: false }));
+  }
+
+  public resolveHomePatient(alert: DailyAlert): HomePatient {
+    const existing = this.patients.find((patient) => patient.patientId === alert.patientId);
+
+    if (existing) {
+      return existing;
+    }
+
+    const created: HomePatient = {
+      id: -alert.id,
+      name: alert.patient,
+      patientId: alert.patientId,
+    };
+
+    this.patients = [...this.patients, created];
+
+    return created;
   }
 
   public openMessageNurseDialog(): void {
@@ -391,18 +533,172 @@ Dr. Carter`;
 
   // Alert dialog methods
   public openAlertDialog(alert: DailyAlert): void {
-    this.selectedAlert = alert;
+    this.selectedAlertId.set(alert.id);
     this.alertDialogOpened = true;
   }
 
   public closeAlertDialog(): void {
     this.alertDialogOpened = false;
+    this.selectedAlertId.set(null);
+    this.alertActionFeedback = '';
   }
 
-  public acknowledgeAlert(): void {
-    console.log('Alert acknowledged:', this.selectedAlert);
-    // Here you would typically update the alert status via a service
-    this.closeAlertDialog();
+  public isAlertInProgress(alert: DailyAlert): boolean {
+    return alert.status === 'In Progress';
+  }
+
+  public isAlertResolved(alert: DailyAlert): boolean {
+    return alert.status === 'Resolved';
+  }
+
+  public canStartAlert(alert: DailyAlert): boolean {
+    return canTransitionAlertStatus(alert.status, 'In Progress');
+  }
+
+  public canResolveAlert(alert: DailyAlert): boolean {
+    return canTransitionAlertStatus(alert.status, 'Resolved');
+  }
+
+  /** Accessible name for the per-alert "start" control, reflecting current state. */
+  public startAlertAriaLabel(alert: DailyAlert): string {
+    return this.canStartAlert(alert)
+      ? `Start work on ${alert.title}. Current status ${alert.status}.`
+      : `${alert.title} is already ${alert.status}. Cannot start work.`;
+  }
+
+  /** Accessible name for the per-alert "resolve" control, reflecting current state. */
+  public resolveAlertAriaLabel(alert: DailyAlert): string {
+    return this.canResolveAlert(alert)
+      ? `Resolve ${alert.title}. Current status ${alert.status}.`
+      : `${alert.title} is already Resolved.`;
+  }
+
+  public startAlertProgress(alert: DailyAlert): void {
+    this.alertsService.startProgress(alert.id);
+  }
+
+  public resolveAlert(alert: DailyAlert): void {
+    this.alertsService.markResolved(alert.id);
+  }
+
+  public startSelectedAlert(): void {
+    const alert = this.selectedAlert();
+
+    if (!alert) {
+      return;
+    }
+
+    this.alertsService.startProgress(alert.id);
+    this.alertActionFeedback = `Case marked as in progress for ${alert.patient}.`;
+  }
+
+  public resolveSelectedAlert(): void {
+    const alert = this.selectedAlert();
+
+    if (!alert) {
+      return;
+    }
+
+    this.alertsService.markResolved(alert.id);
+    this.alertActionFeedback = `Case marked as resolved for ${alert.patient}.`;
+  }
+
+  /** AC-001.1/.2/.3 — navigates to the alert's patient, or reports a missing record. */
+  public openPatientFromAlert(alert: DailyAlert): void {
+    const patient = this.patientsService.getPatientByCode(alert.patientId);
+
+    if (!patient) {
+      this.alertActionFeedback = `Patient record not found for ${alert.patientId}.`;
+      return;
+    }
+
+    this.alertActionFeedback = '';
+    this.alertDialogOpened = false;
+    this.navigateToPatientProfile(patient.id);
+  }
+
+  /** Follow-ups may be scheduled while a case is still actionable. */
+  public canScheduleFollowUp(alert: DailyAlert): boolean {
+    return alert.status !== 'Resolved';
+  }
+
+  public openFollowUpDialogForAlert(alert: DailyAlert): void {
+    this.alertFollowUpContext = alert;
+    this.followUpPatient = this.resolveHomePatient(alert);
+    this.followUpDate = null;
+    this.followUpTime = null;
+    this.followUpType = null;
+    this.followUpError = '';
+    this.isSchedulingFollowUp = false;
+    this.followUpDialogOpened = true;
+  }
+
+  public closeFollowUpDialog(): void {
+    this.followUpDialogOpened = false;
+    this.alertFollowUpContext = null;
+    this.followUpDate = null;
+    this.followUpTime = null;
+    this.followUpType = null;
+    this.followUpError = '';
+    this.isSchedulingFollowUp = false;
+  }
+
+  public saveFollowUp(): void {
+    if (this.isSchedulingFollowUp) {
+      return;
+    }
+
+    const alert = this.alertFollowUpContext;
+
+    if (!alert) {
+      return;
+    }
+
+    if (!this.followUpDate || !this.followUpTime || !this.followUpType) {
+      this.followUpError = 'Date, time and appointment type are required.';
+      return;
+    }
+
+    this.isSchedulingFollowUp = true;
+
+    const start = new Date(this.followUpDate);
+    start.setHours(this.followUpTime.getHours(), this.followUpTime.getMinutes(), 0, 0);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+
+    const appointment = this.appointmentsService.addAppointment({
+      title: alert.patient,
+      reason: this.followUpType,
+      start,
+      end,
+      description: `Follow-up for ${alert.condition}`,
+      patientCode: alert.patientId,
+      alertId: alert.id,
+    });
+
+    this.alertsService.addFollowUp(alert.id, alert.patientId, appointment.id, this.followUpType, start);
+    this.alertActionFeedback = `Follow-up scheduled for ${alert.patient} on ${this.formatFollowUpDate(start)}.`;
+
+    this.closeFollowUpDialog();
+  }
+
+  /** OQ-3 — "Follow-up scheduled for …" line shown on the case detail. */
+  public followUpSummaryFor(alert: DailyAlert): string {
+    const record = this.alertsService.getLatestFollowUpForAlert(alert.id);
+    return record ? `${record.type} on ${this.formatFollowUpDate(record.scheduledFor)}` : '';
+  }
+
+  private formatFollowUpDate(date: Date): string {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  }
+
+  public hasSuggestedNextAction(alert: DailyAlert | null): boolean {
+    return !!alert?.suggestedNextAction && alert.suggestedNextAction.trim().length > 0;
   }
 
   // Reason for Visit dialog methods

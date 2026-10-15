@@ -1,0 +1,90 @@
+.cases-page {
+  width: 100%;
+}
+
+.cases-card {
+  border: none;
+  border-radius: 16px;
+  box-shadow:
+    0px 1px 3px rgba(0, 0, 0, 0.04),
+    0px 2px 6px -1px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cases-card kendo-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.cases-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.cases-toolbar-control {
+  min-width: 180px;
+}
+
+.cases-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.cases-empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--kendo-color-subtle, #6b7280);
+}
+
+.cases-grid-subtext {
+  font-size: 12px;
+  color: var(--kendo-color-subtle, #6b7280);
+}
+
+.cases-grid-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cases-feedback {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--kendo-color-warning-subtle, #fff7e6);
+  color: var(--kendo-color-on-app-surface, #232a36);
+}
+
+.cases-detail-card {
+  border: 1px solid var(--kendo-color-border, #e5e7eb);
+  border-radius: 12px;
+}
+
+.cases-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cases-no-actions {
+  color: var(--kendo-color-subtle, #6b7280);
+  font-style: italic;
+}
+
+@media (max-width: 899px) {
+  .cases-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cases-toggle-label {
+    margin-left: 0;
+  }
+}

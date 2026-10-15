@@ -388,16 +388,22 @@
   filter: drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.04)) drop-shadow(0px 2px 6px rgba(0, 0, 0, 0.06));
 }
 
-.alert-item > div {
+.alert-row {
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  gap: 16px;
+  gap: 12px;
   background: #f1f5f9;
   border-width: 1px 1px 1px 0;
   border-style: solid;
   border-color: rgba(23, 56, 99, 0.08);
   border-radius: 0 12px 12px 0;
+}
+
+.alert-open-button > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .alert-content {
@@ -852,5 +858,83 @@
 @media (min-width: 1440px) {
   .main-content-wrapper {
     margin-bottom: 40px;
+  }
+}
+
+/* Suggested Next Action (Alert Details Dialog) */
+.suggested-next-action {
+  border-left: 4px solid var(--kendo-color-primary, #4b5ffa);
+  padding: 8px 12px;
+  border-radius: 4px;
+  background: rgba(75, 95, 250, 0.08);
+}
+
+.suggested-next-action-text {
+  margin: 4px 0 0;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.alert-action-feedback {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--kendo-color-success, #37b400);
+}
+
+/* Form validation feedback */
+.field-error {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--kendo-color-error, #f31700);
+}
+
+/* Daily Alerts list - open button and CTAs */
+.alert-open-button {
+  all: unset;
+  display: block;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.alert-open-button:focus-visible {
+  outline: 2px solid var(--kendo-color-primary, #4b5ffa);
+  outline-offset: 2px;
+}
+
+.alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 12px 8px;
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+.alert-item:hover .alert-actions,
+.alert-item:focus-within .alert-actions {
+  opacity: 1;
+}
+
+.alert-item--resolved {
+  opacity: 0.85;
+}
+
+.alert-status-chip {
+  flex: 0 0 auto;
+}
+
+.alert-case-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+@media (max-width: 600px), (hover: none) {
+  .alert-actions {
+    opacity: 1;
   }
 }

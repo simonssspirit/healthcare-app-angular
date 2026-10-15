@@ -8,6 +8,9 @@ export interface SchedulerAppointment {
   striped: boolean;
   cancelled?: boolean;
   status?: 'Complete' | 'In Progress' | 'Upcoming' | 'Cancelled';
+  /** Case traceability for appointments created from a Daily Alert follow-up. */
+  patientCode?: string;
+  alertId?: number;
 }
 
 export interface GridAppointment {

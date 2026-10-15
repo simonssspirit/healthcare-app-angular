@@ -29,6 +29,23 @@
 
 ---
 
+### Actionable Daily Alerts
+
+Each alert in the Home dashboard's **Daily Alerts** list exposes three call-to-action buttons —
+**Review**, **Add note** and **Request test** — available both on the list row (revealed on hover
+or keyboard focus) and in the Alert Details Dialog. The dialog additionally shows a **Suggested
+Next Action**: a short, directive recommendation distinct from the longer *Recommended Actions*
+list.
+
+Alert state is held by `AlertsService` (`src/app/services/alerts.service.ts`), which tracks each
+alert's status (`New` / `Reviewed`) and records the notes and lab-test requests created from an
+alert, linked by both `alertId` and `patientId`.
+
+**Known limitation:** the application has no backend. Reviewed status, notes and test requests are
+stored in memory only and reset on page reload.
+
+---
+
 ## Getting Started
 
 This is a standalone repository — run it on its own, then layer in the [Nia CLI](#experiment-with-the-nia-cli) to experiment with AI-assisted workflows.

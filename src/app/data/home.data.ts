@@ -1,3 +1,26 @@
+export type AlertStatus = 'Open' | 'In Progress' | 'Resolved';
+
+/** The default state of every newly seeded patient case. */
+export const DEFAULT_ALERT_STATUS: AlertStatus = 'Open';
+
+/** All case states, in lifecycle order. */
+export const ALERT_STATUSES: readonly AlertStatus[] = ['Open', 'In Progress', 'Resolved'];
+
+/**
+ * Single source of truth for legal case-state transitions.
+ * `Resolved` is terminal in this iteration; reopening is not supported.
+ */
+export const ALERT_STATUS_TRANSITIONS: Readonly<Record<AlertStatus, readonly AlertStatus[]>> = {
+  Open: ['In Progress', 'Resolved'],
+  'In Progress': ['Resolved'],
+  Resolved: [],
+};
+
+/** Returns true when moving a case from `from` to `to` is a legal transition. */
+export function canTransitionAlertStatus(from: AlertStatus, to: AlertStatus): boolean {
+  return ALERT_STATUS_TRANSITIONS[from].includes(to);
+}
+
 export interface DailyAlert {
   id: number;
   title: string;
@@ -10,6 +33,41 @@ export interface DailyAlert {
   priority: string;
   details: string;
   recommendations: string[];
+  status: AlertStatus;
+  suggestedNextAction?: string;
+}
+
+export interface AlertNoteRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  text: string;
+  createdAt: Date;
+}
+
+export interface AlertTestRequestRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  testNames: string[];
+  createdAt: Date;
+}
+
+export const FOLLOW_UP_TYPES: readonly string[] = [
+  'Follow-up consultation',
+  'Lab review',
+  'Specialist referral',
+  'Telehealth check-in',
+];
+
+export interface AlertFollowUpRecord {
+  id: string;
+  alertId: number;
+  patientId: string;
+  appointmentId: number;
+  type: string;
+  scheduledFor: Date;
+  createdAt: Date;
 }
 
 export interface HomePatient {
@@ -24,12 +82,17 @@ export interface LabTest {
   selected: boolean;
 }
 
+/**
+ * `patientId` MUST match a `patientCode` in `PATIENTS_DATA` (patients.data.ts).
+ * This is the single link between an alert and a patient profile; resolve it only
+ * through `PatientsService.getPatientByCode()`.
+ */
 export const DAILY_ALERTS: DailyAlert[] = [
   {
     id: 1,
-    title: 'CRP elevated - Sophia Martinez',
-    patient: 'Sophia Martinez',
-    patientId: 'P-105328',
+    title: 'CRP elevated - Sophia Bennett',
+    patient: 'Sophia Bennett',
+    patientId: 'P-104505',
     time: 'Now',
     condition: 'CRP Elevated',
     value: '12.5 mg/L',
@@ -43,12 +106,15 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Schedule follow-up appointment within 48 hours',
       'Consider antibiotic treatment if infection is suspected',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Order an inflammatory markers panel and review for infection within 24 hours.',
   },
   {
     id: 2,
-    title: 'Blood pressure high - James Carter',
-    patient: 'James Carter',
-    patientId: 'P-104582',
+    title: 'Blood pressure high - James Walker',
+    patient: 'James Walker',
+    patientId: 'P-104506',
     time: '2 min ago',
     condition: 'Blood Pressure High',
     value: '165/98 mmHg',
@@ -63,12 +129,15 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider adjusting or adding medication',
       'Advise lifestyle modifications (diet, exercise, stress management)',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Recheck blood pressure today and review the current antihypertensive dosage.',
   },
   {
     id: 3,
-    title: 'Glucose levels elevated - Daniel Rivera',
-    patient: 'Daniel Rivera',
-    patientId: 'P-103847',
+    title: 'Glucose levels elevated - Daniel Thompson',
+    patient: 'Daniel Thompson',
+    patientId: 'P-104502',
     time: '8 min ago',
     condition: 'Glucose Levels Elevated',
     value: '185 mg/dL',
@@ -83,12 +152,14 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider starting metformin if HbA1c confirms progression',
       'Schedule follow-up in 2 weeks to monitor glucose levels',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Confirm the result with a repeat sample before adjusting therapy.',
   },
   {
     id: 4,
-    title: 'High cholesterol detected - Ava Thompson',
-    patient: 'Ava Thompson',
-    patientId: 'P-106749',
+    title: 'High cholesterol detected - Ava Johnson',
+    patient: 'Ava Johnson',
+    patientId: 'P-104507',
     time: '15 min ago',
     condition: 'High Cholesterol',
     value: 'Total: 265 mg/dL, LDL: 175 mg/dL',
@@ -103,12 +174,14 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Recommend regular aerobic exercise program',
       'Recheck lipid panel in 6-8 weeks after treatment initiation',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Reassess fluid balance and order a repeat renal panel.',
   },
   {
     id: 5,
-    title: 'Low hemoglobin - Marcus Johnson',
-    patient: 'Marcus Johnson',
-    patientId: 'P-107312',
+    title: 'Low hemoglobin - James Wilson',
+    patient: 'James Wilson',
+    patientId: 'P-104508',
     time: '22 min ago',
     condition: 'Low Hemoglobin',
     value: '9.2 g/dL',
@@ -122,12 +195,14 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Consider iron supplementation if iron-deficiency confirmed',
       'Schedule transfusion evaluation if levels drop below 8 g/dL',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction: 'Review current medication list for interactions and document the plan.',
   },
   {
     id: 6,
-    title: 'Elevated creatinine - Olivia Chen',
-    patient: 'Olivia Chen',
-    patientId: 'P-108456',
+    title: 'Elevated creatinine - Olivia Martinez',
+    patient: 'Olivia Martinez',
+    patientId: 'P-104501',
     time: '35 min ago',
     condition: 'Elevated Creatinine',
     value: '2.1 mg/dL',
@@ -141,12 +216,15 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Ensure adequate hydration',
       'Consult nephrology if levels do not improve within 48 hours',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Repeat the measurement and escalate to the on-call clinician if unchanged.',
   },
   {
     id: 7,
-    title: 'Abnormal ECG - Robert Patel',
-    patient: 'Robert Patel',
-    patientId: 'P-109023',
+    title: 'Abnormal ECG - Michael Carter',
+    patient: 'Michael Carter',
+    patientId: 'P-104504',
     time: '52 min ago',
     condition: 'Abnormal ECG',
     value: 'ST-segment depression',
@@ -161,12 +239,15 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Cardiology consult urgently',
       'Prepare for possible stress test or angiography',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Perform a repeat ECG now and order troponin; request an urgent cardiology consult.',
   },
   {
     id: 8,
-    title: 'Potassium level low - Elena Vasquez',
-    patient: 'Elena Vasquez',
-    patientId: 'P-110198',
+    title: 'Potassium level low - Isabella Rossi',
+    patient: 'Isabella Rossi',
+    patientId: 'P-104503',
     time: '1 hr ago',
     condition: 'Hypokalemia',
     value: '2.9 mEq/L',
@@ -180,6 +261,9 @@ export const DAILY_ALERTS: DailyAlert[] = [
       'Order repeat electrolyte panel in 24 hours',
       'Advise high-potassium diet (bananas, leafy greens)',
     ],
+    status: DEFAULT_ALERT_STATUS,
+    suggestedNextAction:
+      'Start oral potassium supplementation and order a repeat electrolyte panel in 24 hours.',
   },
 ];
 
