@@ -36,6 +36,7 @@ import {
   eyeSlashIcon,
   filterIcon,
   homeIcon,
+  listUnorderedIcon,
   menuIcon,
   searchIcon,
   SVGIcon,
@@ -86,12 +87,16 @@ export class App implements OnInit {
   public uploadIcon: SVGIcon = uploadIcon;
   public menuIcon: SVGIcon = menuIcon;
 
+  /** Single source of truth for nav route order; shared by all three nav lists below. */
+  private readonly NAV_ROUTES = ['/', '/schedule', '/patients', '/analytics', '/cases'];
+
   // Navigation items for Segmented Control
   private readonly fullNavItems: SegmentedItemSettings[] = [
     { svgIcon: homeIcon, text: 'Home', title: 'Home' },
     { svgIcon: calendarIcon, text: 'Schedule', title: 'Schedule' },
     { svgIcon: userIcon, text: 'Patients', title: 'Patients' },
     { svgIcon: chartLineMarkersIcon, text: 'Clinical Analytics', title: 'Clinical Analytics' },
+    { svgIcon: listUnorderedIcon, text: 'Active Cases', title: 'Active Cases' },
   ];
 
   private readonly iconOnlyNavItems: SegmentedItemSettings[] = [
@@ -99,6 +104,7 @@ export class App implements OnInit {
     { svgIcon: calendarIcon, title: 'Schedule' },
     { svgIcon: userIcon, title: 'Patients' },
     { svgIcon: chartLineMarkersIcon, title: 'Clinical Analytics' },
+    { svgIcon: listUnorderedIcon, title: 'Active Cases' },
   ];
 
   public navItems: SegmentedItemSettings[] = this.getNavItems();
@@ -122,6 +128,7 @@ export class App implements OnInit {
     { text: 'Schedule', svgIcon: calendarIcon, route: '/schedule' },
     { text: 'Patients', svgIcon: userIcon, route: '/patients' },
     { text: 'Clinical Analytics', svgIcon: chartLineMarkersIcon, route: '/analytics' },
+    { text: 'Active Cases', svgIcon: listUnorderedIcon, route: '/cases' },
   ];
 
   private getNavItems(): SegmentedItemSettings[] {
@@ -240,22 +247,19 @@ export class App implements OnInit {
   // Handle navigation item selection
   public onNavChange(index: number): void {
     this.selectedNavIndex = index;
-    const routes = ['/', '/schedule', '/patients', '/analytics'];
-    this.router.navigate([routes[index]]);
+    this.router.navigate([this.NAV_ROUTES[index]]);
   }
 
   public onNavDropdownSelect(item: { text: string; route: string }): void {
-    const routes = ['/', '/schedule', '/patients', '/analytics'];
-    const index = routes.indexOf(item.route);
+    const index = this.NAV_ROUTES.indexOf(item.route);
     if (index !== -1) this.selectedNavIndex = index;
     this.router.navigate([item.route]);
   }
 
   // Update selected nav index based on current route
   private updateSelectedNavFromRoute(): void {
-    const routes = ['/', '/schedule', '/patients', '/analytics'];
     const currentRoute = this.router.url;
-    const index = routes.findIndex((route) =>
+    const index = this.NAV_ROUTES.findIndex((route) =>
       route === '/' ? currentRoute === '/' : currentRoute.startsWith(route),
     );
     if (index !== -1) {

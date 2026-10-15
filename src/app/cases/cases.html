@@ -1,0 +1,214 @@
+<section class="page-section cases-page">
+  <kendo-card class="cases-card" width="100%">
+    <kendo-card-body>
+      <div class="cases-toolbar">
+        <kendo-multiselect
+          class="cases-toolbar-control"
+          [data]="statusOptions"
+          [value]="filter().statuses"
+          (valueChange)="setStatusFilter($event)"
+          placeholder="All statuses"
+          aria-label="Filter by status"
+        ></kendo-multiselect>
+
+        <kendo-dropdownlist
+          class="cases-toolbar-control"
+          [data]="allPriorityOptions()"
+          [value]="filter().priority ?? ALL_PRIORITIES_LABEL"
+          (valueChange)="setPriorityFilter($event === ALL_PRIORITIES_LABEL ? null : $event)"
+          aria-label="Filter by priority"
+        ></kendo-dropdownlist>
+
+        <kendo-dropdownlist
+          class="cases-toolbar-control"
+          [data]="sortOptions"
+          textField="text"
+          valueField="value"
+          [valuePrimitive]="true"
+          [value]="sortKey()"
+          (valueChange)="setSort($event, sortDirection())"
+          aria-label="Sort cases"
+        ></kendo-dropdownlist>
+
+        <button
+          kendoButton
+          fillMode="flat"
+          type="button"
+          (click)="toggleSortDirection()"
+          [attr.aria-label]="'Sort direction: ' + (sortDirection() === 'asc' ? 'ascending' : 'descending')"
+        >
+          {{ sortDirection() === 'asc' ? '↑' : '↓' }}
+        </button>
+
+        <div class="cases-toggle-label">
+          <kendo-switch
+            [checked]="filter().showResolved"
+            (valueChange)="toggleShowResolved($event)"
+            aria-label="Show resolved cases"
+          ></kendo-switch>
+          <span>Show resolved</span>
+        </div>
+      </div>
+
+      @if (visibleCases().length === 0) {
+        <div class="cases-empty-state">{{ emptyStateMessage() }}</div>
+      } @else {
+        <kendo-grid [data]="visibleCases()" [resizable]="true">
+          <kendo-grid-column title="Patient" [width]="200">
+            <ng-template kendoGridCellTemplate let-dataItem>
+              @if (dataItem.patient) {
+                <div>{{ dataItem.patient.name }}</div>
+                <div class="cases-grid-subtext">{{ dataItem.patient.patientCode }}</div>
+              } @else {
+                <div>{{ dataItem.alert.patient }}</div>
+                <div class="cases-grid-subtext">{{ dataItem.alert.patientId }}</div>
+              }
+            </ng-template>
+          </kendo-grid-column>
+
+          <kendo-grid-column field="alert.title" title="Case" [width]="240"></kendo-grid-column>
+
+          <kendo-grid-column title="Priority" [width]="130">
+            <ng-template kendoGridCellTemplate let-dataItem>
+              <kendo-chip
+                size="small"
+                [label]="dataItem.alert.priority"
+                [themeColor]="getCasePriorityColor(dataItem.alert.priority)"
+              ></kendo-chip>
+            </ng-template>
+          </kendo-grid-column>
+
+          <kendo-grid-column title="Status" [width]="140">
+            <ng-template kendoGridCellTemplate let-dataItem>
+              <kendo-chip
+                size="small"
+                [label]="dataItem.alert.status"
+                [themeColor]="getCaseStatusColor(dataItem.alert.status)"
+                [attr.aria-label]="'Status ' + dataItem.alert.status"
+              ></kendo-chip>
+            </ng-template>
+          </kendo-grid-column>
+
+          <kendo-grid-column field="alert.time" title="Age" [width]="110"></kendo-grid-column>
+
+          <kendo-grid-column title="Next follow-up" [width]="200">
+            <ng-template kendoGridCellTemplate let-dataItem>
+              @if (dataItem.nextFollowUp) {
+                <div>{{ dataItem.nextFollowUp.type }}</div>
+                <div class="cases-grid-subtext">
+                  {{ dataItem.nextFollowUp.scheduledFor | date: 'short' }}
+                </div>
+                @if (dataItem.nextFollowUp.overdue) {
+                  <kendo-chip size="small" label="Overdue" themeColor="error"></kendo-chip>
+                }
+              }
+            </ng-template>
+          </kendo-grid-column>
+
+          <kendo-grid-column title="Actions" [width]="320" [sortable]="false" [filterable]="false">
+            <ng-template kendoGridCellTemplate let-dataItem>
+              <div class="cases-grid-actions">
+                <button kendoButton fillMode="flat" size="small" (click)="selectCase(dataItem)">
+                  View
+                </button>
+                <button
+                  kendoButton
+                  fillMode="flat"
+                  size="small"
+                  [disabled]="!canStart(dataItem)"
+                  (click)="startCase(dataItem)"
+                  [attr.aria-label]="startCaseAriaLabel(dataItem)"
+                >
+                  Start
+                </button>
+                <button
+                  kendoButton
+                  fillMode="flat"
+                  size="small"
+                  [disabled]="!canResolve(dataItem)"
+                  (click)="resolveCase(dataItem)"
+                  [attr.aria-label]="resolveCaseAriaLabel(dataItem)"
+                >
+                  Resolve
+                </button>
+                <button
+                  kendoButton
+                  fillMode="flat"
+                  size="small"
+                  themeColor="primary"
+                  [disabled]="!canOpenPatient(dataItem)"
+                  (click)="openPatient(dataItem)"
+                  [attr.aria-label]="'Open patient profile for ' + dataItem.alert.patient"
+                >
+                  View patient
+                </button>
+              </div>
+            </ng-template>
+          </kendo-grid-column>
+        </kendo-grid>
+      }
+
+      @if (patientLinkFeedback) {
+        <div class="cases-feedback" aria-live="polite">{{ patientLinkFeedback }}</div>
+      }
+
+      @if (selectedCase(); as c) {
+        <kendo-card class="cases-detail-card">
+          <kendo-card-body>
+            <div class="cases-detail-header">
+              <h4>{{ c.alert.condition }}</h4>
+              <button
+                kendoButton
+                fillMode="flat"
+                size="small"
+                (click)="clearSelection()"
+                aria-label="Close case detail"
+              >
+                Close
+              </button>
+            </div>
+
+            <p><strong>Value:</strong> {{ c.alert.value }} (normal range {{ c.alert.normalRange }})</p>
+            <p>{{ c.alert.details }}</p>
+
+            @if (c.alert.recommendations.length > 0) {
+              <ul>
+                @for (recommendation of c.alert.recommendations; track recommendation) {
+                  <li>{{ recommendation }}</li>
+                }
+              </ul>
+            }
+
+            @if (c.alert.suggestedNextAction) {
+              <p><strong>Suggested next action:</strong> {{ c.alert.suggestedNextAction }}</p>
+            }
+
+            <hr />
+
+            @if (c.noteCount > 0) {
+              <h5>Notes</h5>
+              <ul>
+                @for (note of c.notes; track note.id) {
+                  <li>{{ note.text }} — {{ note.createdAt | date: 'short' }}</li>
+                }
+              </ul>
+            }
+
+            @if (c.testRequestCount > 0) {
+              <h5>Test requests</h5>
+              <ul>
+                @for (testRequest of c.testRequests; track testRequest.id) {
+                  <li>{{ testRequest.testNames.join(', ') }}</li>
+                }
+              </ul>
+            }
+
+            @if (!c.hasPendingActions) {
+              <p class="cases-no-actions">{{ CASE_NO_ACTIONS_LABEL }}</p>
+            }
+          </kendo-card-body>
+        </kendo-card>
+      }
+    </kendo-card-body>
+  </kendo-card>
+</section>
